@@ -77,6 +77,12 @@ router.post('/mqtt/stop/:id', async (req, res) => {
 // Add a new MQTT server
 router.post('/addmqtt', async (req, res) => {
   try {
+    if (mqttObj.length > 0) {
+      const mqttInstance = mqttObj[mqttObj.length - 1]
+      if (mqttInstance) {
+        mqttInstance.stop();
+      }
+    }
     const { mqtt_server, mqtt_username, mqtt_password, angle_topic, manuf_topic, position_topic, zone } = req.body;
     const newMqttServer = new mqttServer({
       mqtt_server,
