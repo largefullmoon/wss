@@ -88,8 +88,13 @@ router.post('/addmqtt', async (req, res) => {
       zone
     });
     await newMqttServer.save();
-    res.status(201).json({ message: 'MQTT server created successfully', mqttServer: newMqttServer });
+    res.status(201).json({
+      message: 'MQTT server created successfully',
+      id: newMqttServer._id, // Return the ID
+      mqttServer: newMqttServer
+    });
   } catch (error) {
+
     res.status(500).json({ error: 'Internal server error' });
   }
 });
