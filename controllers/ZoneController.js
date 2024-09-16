@@ -42,6 +42,7 @@ router.get('/mqtt/start/:id', async (req, res) => {
     if (!mqttSrv) {
       return res.status(404).json({ status: 'not found' });
     }
+    console.log("getting handler")
     mqttObj.push(mqttSrv._id.toString());
     mqttObj[mqttObj.length - 1] = new mqttHandler(mqttSrv.mqtt_server,
       mqttSrv.mqtt_username,
@@ -52,6 +53,7 @@ router.get('/mqtt/start/:id', async (req, res) => {
       mqttSrv.zone.toString(),
       mqttSrv._id.toString(),
     );
+    console.log("before running")
     mqttObj[mqttObj.length - 1].go()
     res.json({ status: "ok" });
   } catch (error) {
