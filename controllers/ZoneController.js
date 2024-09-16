@@ -74,37 +74,6 @@ router.post('/mqtt/stop/:id', async (req, res) => {
   }
 });
 
-// Add a new MQTT server
-router.post('/addmqtt', async (req, res) => {
-  try {
-    if (mqttObj.length > 0) {
-      const mqttInstance = mqttObj[mqttObj.length - 1]
-      if (mqttInstance) {
-        mqttInstance.stop();
-      }
-    }
-    const { mqtt_server, mqtt_username, mqtt_password, angle_topic, manuf_topic, position_topic, zone } = req.body;
-    const newMqttServer = new mqttServer({
-      mqtt_server,
-      mqtt_username,
-      mqtt_password,
-      angle_topic,
-      manuf_topic,
-      position_topic,
-      zone
-    });
-    await newMqttServer.save();
-    res.status(201).json({
-      message: 'MQTT server created successfully',
-      id: newMqttServer._id, // Return the ID
-      mqttServer: newMqttServer
-    });
-  } catch (error) {
-
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Delete an MQTT server
 router.post('/removemqtt/:id', async (req, res) => {
   try {
