@@ -35,12 +35,15 @@ class MqttHandler {
 
   go() {
     console.log("starting mqtt handler ", this.zone_id)
-    var wscon = new WebSocket("ws://185.61.139.41:8080/" + this.zone_id);
+    var wscon = new WebSocket("ws://185.61.139.42:8080/" + this.zone_id);
 
     var anglePattern = this.angle_topic.slice(0, -1) + "+antenna_id/+tag_id";
     var manufPattern = this.manuf_topic.slice(0, -1) + "+antenna_id/+tag_id";
     var positionPattern = this.position_topic.slice(0, -1) + "+location/+tag_id";
 
+    if (this.host == "127.0.0.1" || this.host == "localhost") {
+      return false
+    }
 
     this.mqttClient = mqtt.connect('mqtt://' + this.host, this.mqtt_options);
     this.mqttClient.on('error', (err) => {
@@ -51,10 +54,19 @@ class MqttHandler {
       this.mqttClient.subscribe(this.angle_topic);
       this.mqttClient.subscribe(this.manuf_topic);
       this.mqttClient.subscribe(this.position_topic);
-
       console.log(`mqtt client connected`);
     });
     this.mqttClient.on('close', () => {
+      if (this.mqttClient) {
+        this.mqttClient.end(true, () => {
+          console.log('MQTT client disconnected successfully.');
+        });
+      }
+      if (wscon) {
+        wscon.close(() => {
+          console.log('WebSocket connection closed.');
+        });
+      }
       console.log(`mqtt client disconnected`);
     });
     this.mqttClient.on("message", (topic, message) => {
@@ -180,20 +192,13 @@ class MqttHandler {
       });
     }
   }
-  
+
   getMessage() {
     this.mqttClient.on("message", (topic, message) => {
       console.log(`Received message on topic '${topic}': ${message}`);
     })
   }
 
-
-
 }
-
-//   // Sends a mqtt message to topic: mytopic
-
-
-
 
 module.exports = MqttHandler;
