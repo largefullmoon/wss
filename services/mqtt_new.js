@@ -41,7 +41,7 @@ class MqttHandler {
     var manufPattern = this.manuf_topic.slice(0, -1) + "+antenna_id/+tag_id";
     var positionPattern = this.position_topic.slice(0, -1) + "+location/+tag_id";
 
-    if (this.host == "127.0.0.1" || this.host == "localhost") {
+    if (this.host.indexOf("127.0.0.1") >= 0 || this.host.indexOf("localhost") >= 0) {
       return false
     }
 
@@ -120,7 +120,6 @@ class MqttHandler {
               },
             ])
             .then(() => {
-              //console.log("Data written to InfluxDB.");
             })
             .catch((err) => {
               console.error(`Error writing data to InfluxDB: ${err}`);
@@ -164,18 +163,6 @@ class MqttHandler {
         }
 
       }
-      /* //send message to each ws client 
-       
-       */
-
-      // 1 parse message - 
-      // a. topic : positioning location ( put angles as it is ) , coordinates , set zone_id  for all messages 
-      // b. message : device : register antenna , register
-      // c 
-      // 2 apply filters -  user defined ?  
-      // 3 write to database 
-      // 4 stream to clients    
-
     })
 
   }
