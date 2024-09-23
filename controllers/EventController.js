@@ -79,7 +79,7 @@ async function getTagsLastLocation(zoneId = null) {
     }
 };
 let tagIds = []
-let tagEvents = {}
+let tagEvents = []
 async function checkEvent(event, zone_id, areas) {
     const tagInfo = JSON.parse(event)
     if (tagIds.length == 0) {
@@ -91,9 +91,9 @@ async function checkEvent(event, zone_id, areas) {
     }
     for (let i = 0; i < areas.length; i++) {
         const currentStatus = await getDeviceInfo(tagInfo.tag_id);
-        console.log("currentStatus", currentStatus)
         if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
             if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out' && currentStatus?.area == areas[i]._id)) {
+                console.log("currentStatus", currentStatus)
                 await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
                 if (tagEvents.length > 0 && tagEvents[tag_id][areas[i]._id] == "in") {
                     continue
