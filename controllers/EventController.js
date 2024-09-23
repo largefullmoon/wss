@@ -26,28 +26,31 @@ client.connect().then(() => {
 });
 
 const setDeviceInfo = async (deviceId, area, status) => {
-    await client.hSet(`device:${deviceId}`, {
-        'area': area,
-        'status': status
-    }, (err, reply) => {
-        if (err) {
-            return false
-        } else {
-            return true
-        }
-    });
+    try {
+        // Ensure the key is a string
+        const key = `device:${deviceId}`;
+        const data = { "area": area, "status": status }
+        const jsonData = JSON.stringify(data)
+        await client.hSet(key, 'deviceInfo', jsonData);
+        console.log(`Device info set for ${deviceId}`);
+    } catch (err) {
+        console.error('Error setting device info:', err);
+    }
 };
 
 // Function to get device information
 const getDeviceInfo = async (deviceId) => {
     try {
-        const object = await client.hGetAll(`device:${deviceId}`);
-        if (object && Object.keys(object).length > 0) {
-            return object;
-        }
-        else {
+        const key = `device:${deviceId}`;
+        const jsonData = await client.hGet(key, 'deviceInfo');
+
+        // Parse the JSON string back into an object
+        if (jsonData) {
+            const deviceInfo = JSON.parse(jsonData);
+            return deviceInfo;
+        } else {
             console.log(`Device ${deviceId} not found`);
-            return {}
+            return {};
         }
     } catch (err) {
         console.error('Error getting device info:', err);
