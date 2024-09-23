@@ -11,11 +11,11 @@ const eventSchema = new mongoose.Schema(
             required: true,
         },
         zone: {
-            type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Zone' }],
+            type: mongoose.Schema.Types.ObjectId, ref: "Zone",
             default: [],
         },
         area: {
-            type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Area' }],
+            type: mongoose.Schema.Types.ObjectId, ref: "Area",
             default: null,
         },
         information: {
