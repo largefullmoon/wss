@@ -98,7 +98,7 @@ async function checkEvent(event, zone_id, areas) {
                 if (tagEvents.length > 0 && tagEvents[tag_id][areas[i]._id] == "in") {
                     continue
                 }
-                tagEvents[tag_id][areas[i]._id] == true
+                tagEvents[tag_id][areas[i]._id] == "in"
                 const type = "in area"
                 const object = tagInfo.tag_id
                 const zone = zone_id
@@ -119,7 +119,7 @@ async function checkEvent(event, zone_id, areas) {
                 if (tagEvents.length > 0 && tagEvents[tag_id][areas[i]._id] == "out") {
                     continue
                 }
-                tagEvents[tag_id][areas[i]._id] == true
+                tagEvents[tag_id][areas[i]._id] == "out"
                 const type = "out area"
                 const object = tagInfo.tag_id
                 const zone = zone_id
