@@ -100,6 +100,7 @@ async function checkEvent(event, zone_id, areas) {
                 //         continue
                 // }
                 // tagEvents[tag_id][areas[i]._id] == "in"
+                console.log("in area")
                 const type = "in area"
                 const object = tagInfo.tag_id
                 const zone = zone_id
@@ -122,6 +123,7 @@ async function checkEvent(event, zone_id, areas) {
                 //         continue
                 // }
                 // tagEvents[tag_id][areas[i]._id] == "out"
+                console.log("out area")
                 const type = "out area"
                 const object = tagInfo.tag_id
                 const zone = zone_id
