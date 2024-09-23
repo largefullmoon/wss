@@ -24,6 +24,7 @@ class MqttHandler {
       clean: true,
       connectTimeout: 4000,
       reconnectPeriod: 1000,
+      keepalive: 10
     }
     this.username = mqtt_username;
     this.password = mqtt_password;
