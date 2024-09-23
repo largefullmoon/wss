@@ -3,6 +3,7 @@ const Zone = require('../models/Zone');
 const Area = require('../models/Area');
 const Asset = require('../models/Asset');
 const Map = require('../models/Map');
+const Event = require('../models/Event');
 const Influx = require('influx');
 const influx = new Influx.InfluxDB({
     host: "185.61.139.42",
@@ -13,7 +14,7 @@ const influx = new Influx.InfluxDB({
 const redis = require('redis');
 // Create a Redis client
 const client = redis.createClient({
-    host: '127.0.0.1',  // Redis server host (use localhost for local server)
+    host: '185.61.139.42',  // Redis server host (use localhost for local server)
     port: 6379          // Redis server port
 });
 
@@ -42,9 +43,10 @@ const getDeviceInfo = async (deviceId) => {
     try {
         const object = await client.hGetAll(`device:${deviceId}`);
         if (object) {
-            console.log(`Device ${deviceId} info:`, object);
+            return object;
         } else {
             console.log(`Device ${deviceId} not found`);
+            return {}
         }
     } catch (err) {
         console.error('Error getting device info:', err);
@@ -85,20 +87,56 @@ async function checkEvent(event, zone_id, areas) {
     }
     for (let i = 0; i < areas.length; i++) {
         const currentStatus = getDeviceInfo(tagInfo.tag_id);
-        console.log(currentStatus)
         if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
-            if (!tagEvents[tagInfo.tag_id] || (tagEvents[tagInfo.tag_id] && tagEvents[tagInfo.tag_id].status == 'out' && tagEvents[tagInfo.tag_id].area == area[i]._id)) {
+            if (currentStatus == {} || (currentStatus?.status == 'out' && currentStatus?.area == area[i]._id)) {
                 setDeviceInfo(tagInfo.tag_id, area[i]._id, 'in');
                 console.log(tagInfo, "Tag is in area", areas[i])
+                const type = "in area"
+                const object = tagInfo.tag_id
+                const zone = zone_id
+                const area = area[i]._id
+                const information = "Tag cross in Area"
+                const newEvent = new Event({
+                    type,
+                    object,
+                    zone,
+                    area,
+                    information
+                });
+                await newEvent.save();
             }
         } else {
-            if (tagEvents[tagInfo.tag_id] && (tagEvents[tagInfo.tag_id] && tagEvents[tagInfo.tag_id].status == 'in' && tagEvents[tagInfo.tag_id].area == area[i]._id)) {
+            if (currentStatus?.status == 'in' && currentStatus?.area == area[i]._id) {
                 setDeviceInfo(tagInfo.tag_id, area[i]._id, 'out');
                 console.log(tagInfo, "Tag is out of area", areas[i])
+                const type = "out area"
+                const object = tagInfo.tag_id
+                const zone = zone_id
+                const area = area[i]._id
+                const information = "Tag left the Area"
+                const newEvent = new Event({
+                    type,
+                    object,
+                    zone,
+                    area,
+                    information
+                });
+                await newEvent.save();
             }
         }
     }
     if (!tagIds.includes(tagInfo.tag_id)) {
+        const type = "detected"
+        const object = tagInfo.tag_id
+        const zone = zone_id
+        const information = "New tag is detected on Zone"
+        const newEvent = new Event({
+            type,
+            object,
+            zone,
+            information
+        });
+        await newEvent.save();
         console.log("New tag is detected")
         tagIds = await getTagsLastLocation(zone_id);
     }
