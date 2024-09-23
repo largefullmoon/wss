@@ -80,7 +80,7 @@ async function getTagsLastLocation(zoneId = null) {
 };
 let tagIds = []
 let tagEvents = []
-async function checkEvent(event, zone_id, areas) {
+async function checkEvent(event, zone_id, areas, ws) {
     const tagInfo = JSON.parse(event)
     if (tagIds.length == 0) {
         tagIds = await getTagsLastLocation(zone_id);
@@ -101,6 +101,11 @@ async function checkEvent(event, zone_id, areas) {
                 // }
                 // tagEvents[tagInfo.tag_id].status = "in"
                 // tagEvents[tagInfo.tag_id].area = areas[i]._id
+                const data = {
+                    'zone_id': zone_id,
+                    'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id})`,
+                }
+                ws.send(JSON.stringify(data))
                 console.log("in area")
                 const type = "in area"
                 const object = tagInfo.tag_id
@@ -125,6 +130,11 @@ async function checkEvent(event, zone_id, areas) {
                 // }
                 // tagEvents[tagInfo.tag_id].status = "out"
                 // tagEvents[tagInfo.tag_id].area = areas[i]._id
+                const data = {
+                    'zone_id': zone_id,
+                    'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id})`,
+                }
+                ws.send(JSON.stringify(data))
                 console.log("out area")
                 const type = "out area"
                 const object = tagInfo.tag_id
@@ -146,6 +156,11 @@ async function checkEvent(event, zone_id, areas) {
         const type = "detected"
         const object = tagInfo.tag_id
         const zone = zone_id
+        const data = {
+            'zone_id': zone_id,
+            'message': `New Tag (${tagInfo.tag_id}) is detected on Zone (${zone_id})`,
+        }
+        ws.send(JSON.stringify(data))
         const information = "New tag is detected on Zone"
         const newEvent = new Event({
             type,
