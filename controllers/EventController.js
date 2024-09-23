@@ -93,7 +93,7 @@ async function checkEvent(event, zone_id, areas) {
         const currentStatus = await getDeviceInfo(tagInfo.tag_id);
         if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
             console.log("currentStatus", currentStatus)
-            if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out' && currentStatus?.area == areas[i]._id.toString())) {
+            if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                 await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
                 // if (tagEvents[tagInfo.tag_id]) {
                 //     if (tagEvents[tagInfo.tag_id].status == "in" && tagEvents[tagInfo.tag_id].area == areas[i]._id)
