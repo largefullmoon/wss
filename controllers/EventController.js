@@ -9,8 +9,22 @@ const influx = new Influx.InfluxDB({
     host: "185.61.139.42",
     database: "fama",
 });
-
-
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 8088 });
+const clients = [];
+wss.on('connection', (ws, req) => {
+    clients.push(ws)
+    ws.on('close', () => {
+        channels[channel] = channels[channel].filter((client) => client !== ws);
+    });
+});
+function broadcastToClients(data) {
+    clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(data));
+        }
+    });
+}
 const redis = require('redis');
 // Create a Redis client
 const client = redis.createClient({
@@ -105,7 +119,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                     'zone_id': zone_id,
                     'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id})`,
                 }
-                ws.send(JSON.stringify(data))
+                broadcastToClients(data)
                 console.log("in area")
                 const type = "in area"
                 const object = tagInfo.tag_id
@@ -134,8 +148,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                     'zone_id': zone_id,
                     'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id})`,
                 }
-                ws.send(JSON.stringify(data))
-                console.log("out area")
+                broadcastToClients(data)
                 const type = "out area"
                 const object = tagInfo.tag_id
                 const zone = zone_id
@@ -160,7 +173,7 @@ async function checkEvent(event, zone_id, areas, ws) {
             'zone_id': zone_id,
             'message': `New Tag (${tagInfo.tag_id}) is detected on Zone (${zone_id})`,
         }
-        ws.send(JSON.stringify(data))
+        broadcastToClients(data)
         const information = "New tag is detected on Zone"
         const newEvent = new Event({
             type,
