@@ -4,9 +4,10 @@ const WebSocket = require('ws');
 var MQTTPattern = require("mqtt-pattern");
 
 const influx = new Influx.InfluxDB({
-  host: "185.61.139.4",
+  host: "185.61.139.42",
   database: "fama",
 });
+
 
 
 async function outPut(topic, message) {
