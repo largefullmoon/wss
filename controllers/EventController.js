@@ -13,7 +13,7 @@ const influx = new Influx.InfluxDB({
 const redis = require('redis');
 // Create a Redis client
 const client = redis.createClient({
-    host: '185.61.139.42',  // Redis server host (use localhost for local server)
+    host: '127.0.0.1',  // Redis server host (use localhost for local server)
     port: 6379          // Redis server port
 });
 
