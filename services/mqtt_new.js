@@ -57,18 +57,18 @@ class MqttHandler {
       this.mqttClient.subscribe(this.position_topic);
       console.log(`mqtt client connected`);
     });
-    this.mqttClient.on('close', () => {
-      if (this.mqttClient) {
-        this.mqttClient.end(true, () => {
-          console.log('MQTT client disconnected successfully.');
-        });
-      }
-      if (wscon) {
-        ws.close(1000, 'Normal closure');
-        console.log('WebSocket connection closed.');
-      }
-      console.log(`mqtt client disconnected`);
-    });
+    // this.mqttClient.on('close', () => {
+    //   if (this.mqttClient) {
+    //     this.mqttClient.end(true, () => {
+    //       console.log('MQTT client disconnected successfully.');
+    //     });
+    //   }
+    //   if (wscon) {
+    //     ws.close(1000, 'Normal closure');
+    //     console.log('WebSocket connection closed.');
+    //   }
+    //   console.log(`mqtt client disconnected`);
+    // });
     this.mqttClient.on("message", (topic, message) => {
       //parsing
       var paramsAngle = MQTTPattern.exec(anglePattern, topic)
