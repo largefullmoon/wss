@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 var MQTTPattern = require("mqtt-pattern");
 
 const influx = new Influx.InfluxDB({
-  host: "localhost",
+  host: "185.61.139.4",
   database: "fama",
 });
 
@@ -35,7 +35,7 @@ class MqttHandler {
 
   go() {
     console.log("starting mqtt handler ", this.zone_id)
-    var wscon = new WebSocket("ws://185.61.139.42:8080/" + this.zone_id);
+    var wscon = new WebSocket("ws://localhost:8080/" + this.zone_id);
 
     var anglePattern = this.angle_topic.slice(0, -1) + "+antenna_id/+tag_id";
     var manufPattern = this.manuf_topic.slice(0, -1) + "+antenna_id/+tag_id";
@@ -77,88 +77,86 @@ class MqttHandler {
         const data = JSON.parse(message.toString());
 
         // Write the data to InfluxDB
-        influx
-          .writePoints([
-            {
-              measurement: "aoa",
-              tags: {
-                tag_id: paramsAngle.tag_id,
-                antenna_id: paramsAngle.antenna_id,
-                zone: this.zone_id
-              },
-              fields: {
-                ...data
-              },
-              timestamp: data.timestamp,
-            },
-          ])
-          .then(() => {
-            //console.log("Data written to InfluxDB.");
-          })
-          .catch((err) => {
-            console.error(`Error writing data to InfluxDB: ${err}`);
-          });
+        // influx
+        //   .writePoints([
+        //     {
+        //       measurement: "aoa",
+        //       tags: {
+        //         tag_id: paramsAngle.tag_id,
+        //         antenna_id: paramsAngle.antenna_id,
+        //         zone: this.zone_id
+        //       },
+        //       fields: {
+        //         ...data
+        //       },
+        //       timestamp: data.timestamp,
+        //     },
+        //   ])
+        //   .then(() => {
+        //     //console.log("Data written to InfluxDB.");
+        //   })
+        //   .catch((err) => {
+        //     console.error(`Error writing data to InfluxDB: ${err}`);
+        //   });
 
       } else {
         var paramsManuf = MQTTPattern.exec(manufPattern, topic)
         if (paramsManuf) {
           const data = JSON.parse(message.toString());
 
-          influx
-            .writePoints([
-              {
-                measurement: "manuf_data",
-                tags: {
-                  tag_id: paramsManuf.tag_id,
-                  antenna_id: paramsManuf.antenna_id,
-                  zone: this.zone_id
-                },
-                fields: {
-                  ...data
-                },
-                timestamp: data.timestamp,
-              },
-            ])
-            .then(() => {
-            })
-            .catch((err) => {
-              console.error(`Error writing data to InfluxDB: ${err}`);
-            });
+          // influx
+          //   .writePoints([
+          //     {
+          //       measurement: "manuf_data",
+          //       tags: {
+          //         tag_id: paramsManuf.tag_id,
+          //         antenna_id: paramsManuf.antenna_id,
+          //         zone: this.zone_id
+          //       },
+          //       fields: {
+          //         ...data
+          //       },
+          //       timestamp: data.timestamp,
+          //     },
+          //   ])
+          //   .then(() => {
+          //   })
+          //   .catch((err) => {
+          //     console.error(`Error writing data to InfluxDB: ${err}`);
+          //   });
 
 
         } else {
           var paramsPosition = MQTTPattern.exec(positionPattern, topic)
           if (paramsPosition) {
 
-            //console.log('position topic ', paramsPosition.location, paramsPosition.tag_id)
             const data = JSON.parse(message.toString());
             let wsmessage = {
               ...data,
               tag_id: paramsPosition.tag_id
             }
-            console.log(wsmessage)
             wscon.send(JSON.stringify(wsmessage).toString());
-            influx
-              .writePoints([
-                {
-                  measurement: "position",
-                  tags: {
-                    tag_id: paramsPosition.tag_id,
-                    location: paramsPosition.location,
-                    zone: this.zone_id
-                  },
-                  fields: {
-                    ...data
-                  },
-                  timestamp: data.timestamp,
-                },
-              ])
-              .then(() => {
-                //console.log("Data written to InfluxDB.");
-              })
-              .catch((err) => {
-                console.error(`Error writing data to InfluxDB: ${err}`);
-              });
+            // influx
+            //   .writePoints([
+            //     {
+            //       measurement: "position",
+            //       tags: {
+            //         tag_id: paramsPosition.tag_id,
+            //         location: paramsPosition.location,
+            //         zone: this.zone_id
+            //       },
+            //       fields: {
+            //         ...data
+            //       },
+            //       timestamp: data.timestamp,
+            //     },
+            //   ])
+            //   .then(() => {
+            //     //console.log("Data written to InfluxDB.");
+            //   })
+            //   .catch((err) => {
+            //     console.error(`Error writing data to InfluxDB: ${err}`);
+            //   });
           }
         }
 
