@@ -42,9 +42,10 @@ const setDeviceInfo = async (deviceId, area, status) => {
 const getDeviceInfo = async (deviceId) => {
     try {
         const object = await client.hGetAll(`device:${deviceId}`);
-        if (object) {
+        if (object && Object.keys(object).length > 0) {
             return object;
-        } else {
+        }
+        else {
             console.log(`Device ${deviceId} not found`);
             return {}
         }
@@ -89,7 +90,7 @@ async function checkEvent(event, zone_id, areas) {
         const currentStatus = await getDeviceInfo(tagInfo.tag_id);
         console.log("currentStatus", currentStatus)
         if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
-            if (currentStatus == {} || (currentStatus?.status == 'out' && currentStatus?.area == area[i]._id)) {
+            if ((currentStatus?.status != "out" || currentStatus?.status != "in") || (currentStatus?.status == 'out' && currentStatus?.area == area[i]._id)) {
                 setDeviceInfo(tagInfo.tag_id, area[i]._id, 'in');
                 console.log(tagInfo, "Tag is in area", areas[i])
                 const type = "in area"
