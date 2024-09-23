@@ -18,13 +18,10 @@ const client = redis.createClient({
 });
 
 // Connect to Redis
-client.on('connect', () => {
+client.connect().then(() => {
     console.log('Connected to Redis');
-});
-
-// Handle Redis errors
-client.on('error', (err) => {
-    console.error('Redis error:', err);
+}).catch((err) => {
+    console.error('Error connecting to Redis:', err);
 });
 
 const setDeviceInfo = async (deviceId, area, status) => {
