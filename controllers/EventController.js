@@ -95,8 +95,9 @@ async function checkEvent(event, zone_id, areas) {
             if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out' && currentStatus?.area == areas[i]._id)) {
                 console.log("currentStatus", currentStatus)
                 await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
-                if (tagEvents.length > 0 && tagEvents[tag_id][areas[i]._id] == "in") {
-                    continue
+                if (tagEvents[tag_id]) {
+                    if (tagEvents[tag_id][areas[i]._id] == "in")
+                        continue
                 }
                 tagEvents[tag_id][areas[i]._id] == "in"
                 const type = "in area"
@@ -116,8 +117,9 @@ async function checkEvent(event, zone_id, areas) {
         } else {
             if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id) {
                 setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
-                if (tagEvents.length > 0 && tagEvents[tag_id][areas[i]._id] == "out") {
-                    continue
+                if (tagEvents[tag_id]) {
+                    if (tagEvents[tag_id][areas[i]._id] == "out")
+                        continue
                 }
                 tagEvents[tag_id][areas[i]._id] == "out"
                 const type = "out area"
