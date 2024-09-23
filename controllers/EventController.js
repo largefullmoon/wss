@@ -10,7 +10,7 @@ const influx = new Influx.InfluxDB({
     database: "fama",
 });
 const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: 8088 });
+const wss = new WebSocket.Server({ port: 9000 });
 const clients = [];
 wss.on('connection', (ws, req) => {
     clients.push(ws)
