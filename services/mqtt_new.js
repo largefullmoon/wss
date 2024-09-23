@@ -77,53 +77,53 @@ class MqttHandler {
         const data = JSON.parse(message.toString());
 
         // Write the data to InfluxDB
-        // influx
-        //   .writePoints([
-        //     {
-        //       measurement: "aoa",
-        //       tags: {
-        //         tag_id: paramsAngle.tag_id,
-        //         antenna_id: paramsAngle.antenna_id,
-        //         zone: this.zone_id
-        //       },
-        //       fields: {
-        //         ...data
-        //       },
-        //       timestamp: data.timestamp,
-        //     },
-        //   ])
-        //   .then(() => {
-        //     //console.log("Data written to InfluxDB.");
-        //   })
-        //   .catch((err) => {
-        //     console.error(`Error writing data to InfluxDB: ${err}`);
-        //   });
+        influx
+          .writePoints([
+            {
+              measurement: "aoa",
+              tags: {
+                tag_id: paramsAngle.tag_id,
+                antenna_id: paramsAngle.antenna_id,
+                zone: this.zone_id
+              },
+              fields: {
+                ...data
+              },
+              timestamp: data.timestamp,
+            },
+          ])
+          .then(() => {
+            //console.log("Data written to InfluxDB.");
+          })
+          .catch((err) => {
+            console.error(`Error writing data to InfluxDB: ${err}`);
+          });
 
       } else {
         var paramsManuf = MQTTPattern.exec(manufPattern, topic)
         if (paramsManuf) {
           const data = JSON.parse(message.toString());
 
-          // influx
-          //   .writePoints([
-          //     {
-          //       measurement: "manuf_data",
-          //       tags: {
-          //         tag_id: paramsManuf.tag_id,
-          //         antenna_id: paramsManuf.antenna_id,
-          //         zone: this.zone_id
-          //       },
-          //       fields: {
-          //         ...data
-          //       },
-          //       timestamp: data.timestamp,
-          //     },
-          //   ])
-          //   .then(() => {
-          //   })
-          //   .catch((err) => {
-          //     console.error(`Error writing data to InfluxDB: ${err}`);
-          //   });
+          influx
+            .writePoints([
+              {
+                measurement: "manuf_data",
+                tags: {
+                  tag_id: paramsManuf.tag_id,
+                  antenna_id: paramsManuf.antenna_id,
+                  zone: this.zone_id
+                },
+                fields: {
+                  ...data
+                },
+                timestamp: data.timestamp,
+              },
+            ])
+            .then(() => {
+            })
+            .catch((err) => {
+              console.error(`Error writing data to InfluxDB: ${err}`);
+            });
 
 
         } else {
@@ -136,27 +136,27 @@ class MqttHandler {
               tag_id: paramsPosition.tag_id
             }
             wscon.send(JSON.stringify(wsmessage).toString());
-            // influx
-            //   .writePoints([
-            //     {
-            //       measurement: "position",
-            //       tags: {
-            //         tag_id: paramsPosition.tag_id,
-            //         location: paramsPosition.location,
-            //         zone: this.zone_id
-            //       },
-            //       fields: {
-            //         ...data
-            //       },
-            //       timestamp: data.timestamp,
-            //     },
-            //   ])
-            //   .then(() => {
-            //     //console.log("Data written to InfluxDB.");
-            //   })
-            //   .catch((err) => {
-            //     console.error(`Error writing data to InfluxDB: ${err}`);
-            //   });
+            influx
+              .writePoints([
+                {
+                  measurement: "position",
+                  tags: {
+                    tag_id: paramsPosition.tag_id,
+                    location: paramsPosition.location,
+                    zone: this.zone_id
+                  },
+                  fields: {
+                    ...data
+                  },
+                  timestamp: data.timestamp,
+                },
+              ])
+              .then(() => {
+                //console.log("Data written to InfluxDB.");
+              })
+              .catch((err) => {
+                console.error(`Error writing data to InfluxDB: ${err}`);
+              });
           }
         }
 
