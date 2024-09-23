@@ -93,51 +93,51 @@ async function checkEvent(event, zone_id, areas) {
         const currentStatus = await getDeviceInfo(tagInfo.tag_id);
         if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
             console.log("currentStatus", currentStatus)
-            if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out' && currentStatus?.area == areas[i]._id)) {
-                await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
-                // if (tagEvents[tag_id]) {
-                //     if (tagEvents[tag_id][areas[i]._id] == "in")
-                //         continue
-                // }
-                // tagEvents[tag_id][areas[i]._id] == "in"
-                console.log("in area")
-                const type = "in area"
-                const object = tagInfo.tag_id
-                const zone = zone_id
-                const area = areas[i]._id
-                const information = "Tag cross in Area"
-                const newEvent = new Event({
-                    type,
-                    object,
-                    zone,
-                    area,
-                    information
-                });
-                await newEvent.save();
+            // if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out' && currentStatus?.area == areas[i]._id)) {
+            await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
+            if (tagEvents[tag_id]) {
+                if (tagEvents[tag_id][areas[i]._id] == "in")
+                    continue
             }
+            tagEvents[tag_id][areas[i]._id] == "in"
+            console.log("in area")
+            const type = "in area"
+            const object = tagInfo.tag_id
+            const zone = zone_id
+            const area = areas[i]._id
+            const information = "Tag cross in Area"
+            const newEvent = new Event({
+                type,
+                object,
+                zone,
+                area,
+                information
+            });
+            await newEvent.save();
+            // }
         } else {
-            if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id) {
-                setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
-                // if (tagEvents[tag_id]) {
-                //     if (tagEvents[tag_id][areas[i]._id] == "out")
-                //         continue
-                // }
-                // tagEvents[tag_id][areas[i]._id] == "out"
-                console.log("out area")
-                const type = "out area"
-                const object = tagInfo.tag_id
-                const zone = zone_id
-                const area = areas[i]._id
-                const information = "Tag left the Area"
-                const newEvent = new Event({
-                    type,
-                    object,
-                    zone,
-                    area,
-                    information
-                });
-                await newEvent.save();
+            // if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id) {
+            await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
+            if (tagEvents[tag_id]) {
+                if (tagEvents[tag_id][areas[i]._id] == "out")
+                    continue
             }
+            tagEvents[tag_id][areas[i]._id] == "out"
+            console.log("out area")
+            const type = "out area"
+            const object = tagInfo.tag_id
+            const zone = zone_id
+            const area = areas[i]._id
+            const information = "Tag left the Area"
+            const newEvent = new Event({
+                type,
+                object,
+                zone,
+                area,
+                information
+            });
+            await newEvent.save();
+            // }
         }
     }
     if (!tagIds.includes(tagInfo.tag_id)) {
