@@ -86,7 +86,7 @@ async function checkEvent(event, zone_id, areas) {
         areas = await Area.find({ map: map._id })
     }
     for (let i = 0; i < areas.length; i++) {
-        const currentStatus = getDeviceInfo(tagInfo.tag_id);
+        const currentStatus = await getDeviceInfo(tagInfo.tag_id);
         console.log("currentStatus", currentStatus)
         if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
             if (currentStatus == {} || (currentStatus?.status == 'out' && currentStatus?.area == area[i]._id)) {
