@@ -96,7 +96,7 @@ async function checkEvent(event, zone_id, areas) {
                 const type = "in area"
                 const object = tagInfo.tag_id
                 const zone = zone_id
-                const area = area[i]._id
+                const area = areas[i]._id
                 const information = "Tag cross in Area"
                 const newEvent = new Event({
                     type,
@@ -114,7 +114,7 @@ async function checkEvent(event, zone_id, areas) {
                 const type = "out area"
                 const object = tagInfo.tag_id
                 const zone = zone_id
-                const area = area[i]._id
+                const area = areas[i]._id
                 const information = "Tag left the Area"
                 const newEvent = new Event({
                     type,
