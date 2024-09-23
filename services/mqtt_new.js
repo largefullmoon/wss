@@ -64,9 +64,8 @@ class MqttHandler {
         });
       }
       if (wscon) {
-        wscon.close(() => {
-          console.log('WebSocket connection closed.');
-        });
+        ws.close(1000, 'Normal closure');
+        console.log('WebSocket connection closed.');
       }
       console.log(`mqtt client disconnected`);
     });
