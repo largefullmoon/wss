@@ -93,51 +93,53 @@ async function checkEvent(event, zone_id, areas) {
         const currentStatus = await getDeviceInfo(tagInfo.tag_id);
         if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
             console.log("currentStatus", currentStatus)
-            // if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out' && currentStatus?.area == areas[i]._id)) {
-            await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
-            if (tagEvents[tagInfo.tag_id]) {
-                if (tagEvents[tagInfo.tag_id][areas[i]._id] == "in")
-                    continue
+            if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out' && currentStatus?.area == areas[i]._id.toString())) {
+                await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
+                // if (tagEvents[tagInfo.tag_id]) {
+                //     if (tagEvents[tagInfo.tag_id].status == "in" && tagEvents[tagInfo.tag_id].area == areas[i]._id)
+                //         continue
+                // }
+                // tagEvents[tagInfo.tag_id].status = "in"
+                // tagEvents[tagInfo.tag_id].area = areas[i]._id
+                console.log("in area")
+                const type = "in area"
+                const object = tagInfo.tag_id
+                const zone = zone_id
+                const area = areas[i]._id
+                const information = "Tag cross in Area"
+                const newEvent = new Event({
+                    type,
+                    object,
+                    zone,
+                    area,
+                    information
+                });
+                await newEvent.save();
             }
-            tagEvents[tagInfo.tag_id][areas[i]._id] == "in"
-            console.log("in area")
-            const type = "in area"
-            const object = tagInfo.tag_id
-            const zone = zone_id
-            const area = areas[i]._id
-            const information = "Tag cross in Area"
-            const newEvent = new Event({
-                type,
-                object,
-                zone,
-                area,
-                information
-            });
-            await newEvent.save();
-            // }
         } else {
-            // if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id) {
-            await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
-            if (tagEvents[tagInfo.tag_id]) {
-                if (tagEvents[tagInfo.tag_id][areas[i]._id] == "out")
-                    continue
+            if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
+                setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
+                // if (tagEvents[tagInfo.tag_id]) {
+                //     if (tagEvents[tagInfo.tag_id].status == "out" && tagEvents[tagInfo.tag_id].area == areas[i]._id)
+                //         continue
+                // }
+                // tagEvents[tagInfo.tag_id].status = "out"
+                // tagEvents[tagInfo.tag_id].area = areas[i]._id
+                console.log("out area")
+                const type = "out area"
+                const object = tagInfo.tag_id
+                const zone = zone_id
+                const area = areas[i]._id
+                const information = "Tag left the Area"
+                const newEvent = new Event({
+                    type,
+                    object,
+                    zone,
+                    area,
+                    information
+                });
+                await newEvent.save();
             }
-            tagEvents[tagInfo.tag_id][areas[i]._id] == "out"
-            console.log("out area")
-            const type = "out area"
-            const object = tagInfo.tag_id
-            const zone = zone_id
-            const area = areas[i]._id
-            const information = "Tag left the Area"
-            const newEvent = new Event({
-                type,
-                object,
-                zone,
-                area,
-                information
-            });
-            await newEvent.save();
-            // }
         }
     }
     if (!tagIds.includes(tagInfo.tag_id)) {
