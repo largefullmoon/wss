@@ -1,17 +1,18 @@
 var express = require('express');
 var app = express();
 var mqttHandler = require('./services/mqtt_new');
-
+var { checkEvent } = require('./controllers/EventController.js');
+const Area = require('./models/Area');
+const Map = require('./models/Map');
 const url = require('url');
 const WebSocket = require('ws');
-
 const mongoose = require('mongoose')
 const match = require('mqtt-match')
 require('./lib/db');
 
 mqttObj = [{}];
 let channels = {};
-
+let areas = {}
 const mqttServer = require('./models/Mqtt');
 
 const zoneController = require('./controllers/ZoneController.js');
@@ -26,7 +27,8 @@ wss.on('connection', (ws, req) => {
     channels[channel] = [];
   }
   channels[channel].push(ws);
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
+    await checkEvent(message.toString(), channel, areas[channel])
     channels[channel].forEach(function each(client) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message.toString());
@@ -38,7 +40,6 @@ wss.on('connection', (ws, req) => {
     channels[channel] = channels[channel].filter((client) => client !== ws);
   });
 });
-
 
 async function startServer() {
 
@@ -60,9 +61,6 @@ async function startServer() {
         server._id.toString(),
       );
       mqttObj[index].go();
-
-      //mqttObj[index].getMessage();
-
     })
 
     mqttServers.forEach((server, index) => {
@@ -76,3 +74,9 @@ async function startServer() {
 startServer()
 
 
+app.post('/api/refresh/:id', async (req, res) => {
+  const channel =  req.params.id
+  const map = await Map.findOne({ zone: channel })
+  const area = await Area.find({ map: map._id })
+  areas[channel] = area
+});
