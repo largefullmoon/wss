@@ -6,7 +6,7 @@ const Map = require('../models/Map');
 const Event = require('../models/Event');
 const Influx = require('influx');
 const influx = new Influx.InfluxDB({
-    host: "185.61.139.42",
+    host: "185.61.139.41",
     database: "fama",
 });
 const WebSocket = require('ws');
