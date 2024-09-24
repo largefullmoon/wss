@@ -13,10 +13,23 @@ const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 9000 });
 const clients = [];
 wss.on('connection', (ws, req) => {
-    clients.push(ws)
+    const interval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.ping(); // Send ping
+        } else {
+            clearInterval(interval);
+        }
+    }, 3000); // Ping every 30 seconds
+
+    ws.on('pong', () => {
+        console.log("receive pong from client");
+    });
+
     ws.on('close', () => {
+        clearInterval(interval); // Clear interval when the client disconnects
         channels[channel] = channels[channel].filter((client) => client !== ws);
     });
+    clients.push(ws)
 });
 function broadcastToClients(data) {
     clients.forEach((client) => {
