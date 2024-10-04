@@ -44,12 +44,10 @@ wss.on('connection', (ws, req) => {
 async function startServer() {
 
   const wsserver = app.listen(8000)
-  console.log("Server listening on port ")
 
   const mqttServers = await mqttServer.find();
   if (mqttServers) {
     mqttServers.forEach((server, index) => {
-      console.log(server.mqtt_server)
       mqttObj.push(server._id.toString());
       mqttObj[index] = new mqttHandler(server.mqtt_server,
         server.mqtt_username,
@@ -64,7 +62,6 @@ async function startServer() {
     })
 
     mqttServers.forEach((server, index) => {
-      // console.log(server._id.toString())
       console.log("mqqt servers ", mqttObj[index].id, index);
     })
   } else {
