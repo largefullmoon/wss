@@ -35,7 +35,7 @@ const wss = new WebSocket.Server({ server: httpsServer });
 
 wss.on('connection', (ws, req) => {
   // const channel = req.url.substring(1);
-  // console.log("connected to ws ")
+  console.log("connected to ws ")
   // if (!channels[channel]) {
   //   channels[channel] = [];
   // }
