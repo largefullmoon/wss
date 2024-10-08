@@ -10,6 +10,7 @@ const mongoose = require('mongoose')
 const match = require('mqtt-match')
 require('./lib/db');
 const Influx = require("influx");
+const fs = require('fs');
 const https = require('https');
 const TagStatus = require('./models/TagStatus.js');
 const influx = new Influx.InfluxDB({
