@@ -26,8 +26,8 @@ const zoneController = require('./controllers/ZoneController.js');
 app.use('/api', zoneController);
 
 const serverOptions = {
-  cert: fs.readFileSync('../../../etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
-  key: fs.readFileSync('../../../etc/nginx/ssl/cotrax.io.key'),  // Path to private key
+  cert: fs.readFileSync('/etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
+  key: fs.readFileSync('/etc/nginx/ssl/cotrax.io.key'),  // Path to private key
 };
 const httpsServer = https.createServer(serverOptions);
 
