@@ -1,15 +1,15 @@
-var express = require('express');
-var app = express();
-var mqttHandler = require('./services/mqtt_new');
-var { checkEvent } = require('./controllers/EventController.js');
-const Area = require('./models/Area');
-const Map = require('./models/Map');
-const url = require('url');
+// var express = require('express');
+// var app = express();
+// var mqttHandler = require('./services/mqtt_new');
+// var { checkEvent } = require('./controllers/EventController.js');
+// const Area = require('./models/Area');
+// const Map = require('./models/Map');
+// const url = require('url');
 const WebSocket = require('ws');
-const mongoose = require('mongoose')
-const match = require('mqtt-match')
-require('./lib/db');
-const Influx = require("influx");
+// const mongoose = require('mongoose')
+// const match = require('mqtt-match')
+// require('./lib/db');
+// const Influx = require("influx");
 const fs = require('fs');
 const https = require('https');
 // const TagStatus = require('./models/TagStatus.js');
