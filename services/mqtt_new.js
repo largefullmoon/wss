@@ -2,13 +2,11 @@ const mqtt = require('mqtt');
 const Influx = require("influx");
 const WebSocket = require('ws');
 var MQTTPattern = require("mqtt-pattern");
-
+const TagStatus = require('../models/TagStatus');
 const influx = new Influx.InfluxDB({
-  host: "185.61.139.42",
+  host: "185.61.139.41",
   database: "fama",
 });
-
-
 
 async function outPut(topic, message) {
   console.log(`Received message on topic '${topic}': ${message}`);
@@ -37,6 +35,7 @@ class MqttHandler {
 
   go() {
     console.log("starting mqtt handler ", this.zone_id)
+    const tag_ids = []
     var wscon = new WebSocket("ws://localhost:8080/" + this.zone_id);
 
     var anglePattern = this.angle_topic.slice(0, -1) + "+antenna_id/+tag_id";
@@ -65,18 +64,16 @@ class MqttHandler {
     //     });
     //   }
     //   if (wscon) {
-    //     ws.close(1000, 'Normal closure');
+    //     wscon.close(1000, 'Normal closure');
     //     console.log('WebSocket connection closed.');
     //   }
     //   console.log(`mqtt client disconnected`);
     // });
-    this.mqttClient.on("message", (topic, message) => {
+    this.mqttClient.on("message", async (topic, message) => {
       //parsing
       var paramsAngle = MQTTPattern.exec(anglePattern, topic)
       if (paramsAngle) {
-        //    console.log('angle topic ', paramsAngle.antenna_id, paramsAngle.tag_id)  
         const data = JSON.parse(message.toString());
-
         // Write the data to InfluxDB
         influx
           .writePoints([
@@ -94,7 +91,7 @@ class MqttHandler {
             },
           ])
           .then(() => {
-            //console.log("Data written to InfluxDB.");
+            console.log("Data written to InfluxDB.");
           })
           .catch((err) => {
             console.error(`Error writing data to InfluxDB: ${err}`);
@@ -104,7 +101,53 @@ class MqttHandler {
         var paramsManuf = MQTTPattern.exec(manufPattern, topic)
         if (paramsManuf) {
           const data = JSON.parse(message.toString());
+          console.log(data, "manuf_data")
+          if (!tag_ids.includes(paramsManuf.tag_id)) {
+            tag_ids.push(paramsManuf.tag_id)
+            const tag = await TagStatus.findOne({ tag_id: paramsManuf.tag_id, zone_id: this.zone_id });
+            let status = "good"
+            if (data.vbatt < 3) {
+              status = "warning"
+            }
+            if (data.vbatt < 2.5) {
+              status = "critical"
+            }
+            if (tag) {
+              // Tag exists, update it
+              tag.manuf_data = data
+              tag.time = new Date();
+              tag.status = status
+              await tag.save();
+            } else {
+              // Tag does not exist, create a new one
+              const newTag = new TagStatus({
+                tag_id: paramsManuf.tag_id,
+                manuf_data: data,
+                zone_id: this.zone_id,
+                time: new Date(),
+                status: status,
+              });
+              await newTag.save();
+            }
 
+          } else {
+            const tag = await TagStatus.findOne({ tag_id: paramsManuf.tag_id, zone_id: this.zone_id });
+            let status = "good"
+            if (data.vbatt < 3) {
+              status = "warning"
+            }
+            if (data.vbatt < 2.5) {
+              status = "critical"
+            }
+            if (tag) {
+              // Tag exists, update it
+              tag.manuf_data = data
+              tag.time = new Date();
+              tag.status = status
+              await tag.save();
+            }
+
+          }
           influx
             .writePoints([
               {
@@ -130,7 +173,6 @@ class MqttHandler {
         } else {
           var paramsPosition = MQTTPattern.exec(positionPattern, topic)
           if (paramsPosition) {
-
             const data = JSON.parse(message.toString());
             let wsmessage = {
               ...data,
