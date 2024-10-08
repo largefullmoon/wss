@@ -9,7 +9,13 @@ const WebSocket = require('ws');
 const mongoose = require('mongoose')
 const match = require('mqtt-match')
 require('./lib/db');
-
+const Influx = require("influx");
+const https = require('https');
+const TagStatus = require('./models/TagStatus.js');
+const influx = new Influx.InfluxDB({
+  host: "185.61.139.41",
+  database: "fama",
+});
 mqttObj = [{}];
 let channels = {};
 let areas = {}
@@ -18,7 +24,13 @@ const mqttServer = require('./models/Mqtt');
 const zoneController = require('./controllers/ZoneController.js');
 app.use('/api', zoneController);
 
-const wss = new WebSocket.Server({ port: 8080 });
+const serverOptions = {
+  cert: fs.readFileSync('../../../etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
+  key: fs.readFileSync('../../../etc/nginx/ssl/cotrax.io.key'),  // Path to private key
+};
+const httpsServer = https.createServer(serverOptions);
+
+const wss = new WebSocket.Server({ server: httpsServer });
 
 wss.on('connection', (ws, req) => {
   const channel = req.url.substring(1);
@@ -28,7 +40,7 @@ wss.on('connection', (ws, req) => {
   }
   channels[channel].push(ws);
   ws.on('message', async (message) => {
-    await checkEvent(message.toString(), channel, areas[channel], ws)
+    // await checkEvent(message.toString(), channel, areas[channel], ws)
     channels[channel].forEach(function each(client) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message.toString());
@@ -70,10 +82,68 @@ async function startServer() {
 }
 startServer()
 
-
 app.post('/api/refresh/:id', async (req, res) => {
-  const channel =  req.params.id
+  const channel = req.params.id
   const map = await Map.findOne({ zone: channel })
   const area = await Area.find({ map: map._id })
   areas[channel] = area
 });
+
+async function getAllTagData() {
+  // Query to retrieve data from the `manuf_data` measurement based on tag values
+  console.log("get all tags data")
+  const query = `
+    SELECT LAST(ext_adc), *
+      FROM "manuf_data"
+      GROUP BY "tag_id", "zone"
+    `;
+  influx.query(query)
+    .then(async (rows) => {
+      if (rows.length > 0) {
+        rows.forEach(async (row) => {
+          const tag = await TagStatus.findOne({ tag_id: row.tag_id, zone_id: row.zone });
+          console.log(row.time, "row.time")
+          if (tag) {
+            // Tag exists, update it
+            tag.time = row.time._nanoISO
+            await tag.save();
+          } else {
+            // Tag does not exist, create a new one
+            const newTag = new TagStatus({
+              tag_id: row.tag_id,
+              zone_id: row.zone,
+              time: row.time._nanoISO,
+              status: "no data",
+            });
+            await newTag.save();
+          }
+        })
+      } else {
+        console.log('No data found for the given query.');
+      }
+    })
+    .catch((err) => {
+      console.error(`Error querying data from InfluxDB: ${err}`);
+    });
+}
+getAllTagData()
+
+async function checkTagStatus() {
+  const tags = await TagStatus.find()
+  tags.forEach(async (tag) => {
+    const currentTime = new Date();
+    const tagTime = new Date(tag.time);
+    const timeDifference = currentTime - tagTime;
+    if (timeDifference > 5 * 60 * 1000) {
+      tag.status = 'no data'; // Update the status
+      await tag.save(); // Save the updated tag
+    }
+    if (timeDifference > 120 * 60 * 1000) {
+      tag.status = 'lost'; // Update the status
+      await tag.save(); // Save the updated tag
+    }
+  })
+}
+setInterval(() => {
+  checkTagStatus()
+}, 300000);
