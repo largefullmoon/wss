@@ -12,7 +12,7 @@ const influx = new Influx.InfluxDB({
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 9000 });
 const clients = [];
-const { ClickHouse } = require('@clickhouse/client');
+// const { ClickHouse } = require('@clickhouse/client');
 wss.on('connection', (ws, req) => {
     const interval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
@@ -140,28 +140,35 @@ async function checkEvent(event, zone_id, areas, ws) {
                 const zone = zone_id
                 const area = areas[i]._id
                 const information = "Tag cross in Area"
-                console.log(information)
-                const query = `
-                    CREATE TABLE IF NOT EXISTS event (
-                        id UUID DEFAULT generateUUIDv4(),
-                        type String,
-                        object String,
-                        zone String,
-                        area String,
-                        information String,
-                        timestamp DateTime
-                    )
-                    ENGINE = MergeTree
-                    PRIMARY KEY (id, timestamp)
-                    `;
+                const newEvent = new Event({
+                    type,
+                    object,
+                    zone,
+                    area,
+                    information
+                });
+                await newEvent.save();
+                // const query = `
+                //     CREATE TABLE IF NOT EXISTS event (
+                //         id UUID DEFAULT generateUUIDv4(),
+                //         type String,
+                //         object String,
+                //         zone String,
+                //         area String,
+                //         information String,
+                //         timestamp DateTime
+                //     )
+                //     ENGINE = MergeTree
+                //     PRIMARY KEY (id, timestamp)
+                //     `;
 
-                // Execute the query
-                await clickhouse.query(query).toPromise();
-                const insertQuery = `
-                    INSERT INTO event (type, object, zone, area, information)
-                    VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-                `;
-                await clickhouse.query(insertQuery).toPromise();
+                // // Execute the query
+                // await clickhouse.query(query).toPromise();
+                // const insertQuery = `
+                //     INSERT INTO event (type, object, zone, area, information)
+                //     VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
+                // `;
+                // await clickhouse.query(insertQuery).toPromise();
             }
         } else {
             if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
@@ -182,28 +189,35 @@ async function checkEvent(event, zone_id, areas, ws) {
                 const zone = zone_id
                 const area = areas[i]._id
                 const information = "Tag left the Area"
-                console.log(information)
-                const query = `
-                    CREATE TABLE IF NOT EXISTS event (
-                        id UUID DEFAULT generateUUIDv4(),
-                        type String,
-                        object String,
-                        zone String,
-                        area String,
-                        information String,
-                        timestamp DateTime
-                    )
-                    ENGINE = MergeTree
-                    PRIMARY KEY (id, timestamp)
-                    `;
+                const newEvent = new Event({
+                    type,
+                    object,
+                    zone,
+                    area,
+                    information
+                });
+                await newEvent.save();
+                // const query = `
+                //     CREATE TABLE IF NOT EXISTS event (
+                //         id UUID DEFAULT generateUUIDv4(),
+                //         type String,
+                //         object String,
+                //         zone String,
+                //         area String,
+                //         information String,
+                //         timestamp DateTime
+                //     )
+                //     ENGINE = MergeTree
+                //     PRIMARY KEY (id, timestamp)
+                //     `;
 
-                // Execute the query
-                await clickhouse.query(query).toPromise();
-                const insertQuery = `
-                    INSERT INTO event (type, object, zone, area, information)
-                    VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-                `;
-                await clickhouse.query(insertQuery).toPromise();
+                // // Execute the query
+                // await clickhouse.query(query).toPromise();
+                // const insertQuery = `
+                //     INSERT INTO event (type, object, zone, area, information)
+                //     VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
+                // `;
+                // await clickhouse.query(insertQuery).toPromise();
             }
         }
     }
@@ -217,27 +231,33 @@ async function checkEvent(event, zone_id, areas, ws) {
         }
         broadcastToClients(data)
         const information = "New tag is detected on Zone"
-        console.log(information)
-        const query = `
-                    CREATE TABLE IF NOT EXISTS event (
-                        id UUID DEFAULT generateUUIDv4(),
-                        type String,
-                        object String,
-                        zone String,
-                        area String,
-                        information String,
-                        timestamp DateTime
-                    )
-                    ENGINE = MergeTree
-                    PRIMARY KEY (id, timestamp)
-                    `;
-        // Execute the query
-        await clickhouse.query(query).toPromise();
-        const insertQuery = `
-                    INSERT INTO event (type, object, zone, area, information)
-                    VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-                `;
-        await clickhouse.query(insertQuery).toPromise();
+        const newEvent = new Event({
+            type,
+            object,
+            zone,
+            information
+        });
+        await newEvent.save();
+        // const query = `
+        //             CREATE TABLE IF NOT EXISTS event (
+        //                 id UUID DEFAULT generateUUIDv4(),
+        //                 type String,
+        //                 object String,
+        //                 zone String,
+        //                 area String,
+        //                 information String,
+        //                 timestamp DateTime
+        //             )
+        //             ENGINE = MergeTree
+        //             PRIMARY KEY (id, timestamp)
+        //             `;
+        // // Execute the query
+        // await clickhouse.query(query).toPromise();
+        // const insertQuery = `
+        //             INSERT INTO event (type, object, zone, area, information)
+        //             VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
+        //         `;
+        // await clickhouse.query(insertQuery).toPromise();
         tagIds = await getTagsLastLocation(zone_id);
     }
 
