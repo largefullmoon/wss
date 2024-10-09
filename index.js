@@ -1,5 +1,5 @@
-var express = require('express');
-var app = express();
+// var express = require('express');
+// var app = express();
 // var mqttHandler = require('./services/mqtt_new');
 // var { checkEvent } = require('./controllers/EventController.js');
 // const Area = require('./models/Area');
@@ -35,7 +35,16 @@ const wss = new WebSocket.Server({ server: httpsServer });
 
 wss.on('connection', (ws, req) => {
   // const channel = req.url.substring(1);
-  console.log("connected to ws ")
+  console.log('Client connected over WSS');
+
+  ws.on('message', (message) => {
+    console.log('Received:', message);
+    ws.send('Hello from WSS server!');
+  });
+
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
   // if (!channels[channel]) {
   //   channels[channel] = [];
   // }
@@ -54,34 +63,34 @@ wss.on('connection', (ws, req) => {
   // });
 });
 
-async function startServer() {
+// async function startServer() {
 
-  const wsserver = app.listen(8000)
+//   const wsserver = app.listen(8000)
 
-  //   const mqttServers = await mqttServer.find();
-  //   if (mqttServers) {
-  //     mqttServers.forEach((server, index) => {
-  //       mqttObj.push(server._id.toString());
-  //       mqttObj[index] = new mqttHandler(server.mqtt_server,
-  //         server.mqtt_username,
-  //         server.mqtt_password,
-  //         server.angle_topic,
-  //         server.manuf_topic,
-  //         server.position_topic,
-  //         server.zone.toString(),
-  //         server._id.toString(),
-  //       );
-  //       mqttObj[index].go();
-  //     })
+//   const mqttServers = await mqttServer.find();
+//   if (mqttServers) {
+//     mqttServers.forEach((server, index) => {
+//       mqttObj.push(server._id.toString());
+//       mqttObj[index] = new mqttHandler(server.mqtt_server,
+//         server.mqtt_username,
+//         server.mqtt_password,
+//         server.angle_topic,
+//         server.manuf_topic,
+//         server.position_topic,
+//         server.zone.toString(),
+//         server._id.toString(),
+//       );
+//       mqttObj[index].go();
+//     })
 
-  //     mqttServers.forEach((server, index) => {
-  //       console.log("mqqt servers ", mqttObj[index].id, index);
-  //     })
-  //   } else {
-  //     console.log("no mqtt servers , waiting for actions  ")
-  //   }
-}
-startServer()
+//     mqttServers.forEach((server, index) => {
+//       console.log("mqqt servers ", mqttObj[index].id, index);
+//     })
+//   } else {
+//     console.log("no mqtt servers , waiting for actions  ")
+//   }
+// }
+// startServer()
 
 // app.post('/api/refresh/:id', async (req, res) => {
 //   const channel = req.params.id
@@ -148,3 +157,7 @@ startServer()
 // setInterval(() => {
 //   checkTagStatus()
 // }, 300000);
+
+httpsServer.listen(8080, () => {
+  console.log('WSS server running on wss://185.42.23.21:8000');
+});
