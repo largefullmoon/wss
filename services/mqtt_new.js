@@ -100,7 +100,6 @@ class MqttHandler {
         var paramsManuf = MQTTPattern.exec(manufPattern, topic)
         if (paramsManuf) {
           const data = JSON.parse(message.toString());
-          console.log(data, "manuf_data")
           if (!tag_ids.includes(paramsManuf.tag_id)) {
             tag_ids.push(paramsManuf.tag_id)
             const tag = await TagStatus.findOne({ tag_id: paramsManuf.tag_id, zone_id: this.zone_id });

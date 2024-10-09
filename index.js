@@ -41,7 +41,7 @@ wss.on('connection', (ws, req) => {
   }
   channels[channel].push(ws);
   ws.on('message', async (message) => {
-    // await checkEvent(message.toString(), channel, areas[channel], ws)
+    await checkEvent(message.toString(), channel, areas[channel], ws)
     channels[channel].forEach(function each(client) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message.toString());
