@@ -5,12 +5,19 @@ const Asset = require('../models/Asset');
 const Map = require('../models/Map');
 const Event = require('../models/Event');
 const Influx = require('influx');
+const https = require('https');
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
     database: "fama",
 });
 const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: 9000 });
+const serverOptions = {
+    cert: fs.readFileSync('/etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
+    key: fs.readFileSync('/etc/nginx/ssl/cotrax.io.key'),  // Path to private key
+};
+const httpsServer = https.createServer(serverOptions);
+
+const wss = new WebSocket.Server({ server: httpsServer });
 const clients = [];
 // const { ClickHouse } = require('@clickhouse/client');
 wss.on('connection', (ws, req) => {
@@ -31,6 +38,9 @@ wss.on('connection', (ws, req) => {
         channels[channel] = channels[channel].filter((client) => client !== ws);
     });
     clients.push(ws)
+});
+httpsServer.listen(9000, () => {
+    console.log('WSS server running on 8080');
 });
 function broadcastToClients(data) {
     clients.forEach((client) => {
