@@ -94,7 +94,6 @@ app.post('/api/refresh/:id', async (req, res) => {
 
 async function getAllTagData() {
   // Query to retrieve data from the `manuf_data` measurement based on tag values
-  console.log("get all tags data")
   const query = `
     SELECT LAST(ext_adc), *
       FROM "manuf_data"
@@ -105,7 +104,6 @@ async function getAllTagData() {
       if (rows.length > 0) {
         rows.forEach(async (row) => {
           const tag = await TagStatus.findOne({ tag_id: row.tag_id, zone_id: row.zone });
-          console.log(row.time, "row.time")
           if (tag) {
             // Tag exists, update it
             tag.time = row.time._nanoISO

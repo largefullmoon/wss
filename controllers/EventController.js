@@ -70,7 +70,6 @@ const setDeviceInfo = async (deviceId, area, status) => {
         const data = { "area": area, "status": status }
         const jsonData = JSON.stringify(data)
         await client.hSet(key, 'deviceInfo', jsonData);
-        console.log(`Device info set for ${deviceId}`);
     } catch (err) {
         console.error('Error setting device info:', err);
     }
@@ -87,7 +86,6 @@ const getDeviceInfo = async (deviceId) => {
             const deviceInfo = JSON.parse(jsonData);
             return deviceInfo;
         } else {
-            console.log(`Device ${deviceId} not found`);
             return {};
         }
     } catch (err) {
@@ -102,7 +100,6 @@ async function getTagsLastLocation(zoneId = null) {
         if (zoneId === null) {
             query = `select last(x),* from position group by tag_id ;`
         } else {
-            console.log("getAntennasValues ZONEID ", zoneId)
             query = `select last(x),* from position WHERE zone='` + zoneId + `' group by tag_id`
         }
         await influx.query(query).then(results => {
@@ -112,7 +109,6 @@ async function getTagsLastLocation(zoneId = null) {
         })
         return tagIds
     } catch (error) {
-        console.log(error)
         return []
     }
 };
@@ -130,7 +126,6 @@ async function checkEvent(event, zone_id, areas, ws) {
     for (let i = 0; i < areas.length; i++) {
         const currentStatus = await getDeviceInfo(tagInfo.tag_id);
         if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
-            console.log("currentStatus", currentStatus)
             if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                 await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
                 // if (tagEvents[tagInfo.tag_id]) {
@@ -144,7 +139,6 @@ async function checkEvent(event, zone_id, areas, ws) {
                     'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id})`,
                 }
                 broadcastToClients(data)
-                console.log("in area")
                 const type = "in area"
                 const object = tagInfo.tag_id
                 const zone = zone_id
