@@ -6,6 +6,7 @@ const Map = require('../models/Map');
 const Event = require('../models/Event');
 const Influx = require('influx');
 const https = require('https');
+const fs = require('fs');
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
     database: "fama",
