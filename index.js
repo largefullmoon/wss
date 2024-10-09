@@ -26,8 +26,8 @@ const https = require('https');
 // app.use('/api', zoneController);
 
 const serverOptions = {
-  cert: fs.readFileSync('/etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
-  key: fs.readFileSync('/etc/nginx/ssl/cotrax.io.key'),  // Path to private key
+  cert: fs.readFileSync('/etc/letsencrypt/live/websocket.cotrax.io/fullchain.pem'),    // Path to SSL certificate
+  key: fs.readFileSync('/etc/letsencrypt/live/websocket.cotrax.io/privkey.pem'),  // Path to private key
 };
 const httpsServer = https.createServer(serverOptions);
 
@@ -159,5 +159,5 @@ wss.on('connection', (ws, req) => {
 // }, 300000);
 
 httpsServer.listen(8080, () => {
-  console.log('WSS server running on wss://185.42.23.21:8000');
+  console.log('WSS server running on 8080');
 });
