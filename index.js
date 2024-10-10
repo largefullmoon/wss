@@ -41,6 +41,7 @@ wss.on('connection', (ws, req) => {
   }
   channels[channel].push(ws);
   ws.on('message', async (message) => {
+    console.log("websocket got the message from mqtt")
     await checkEvent(message.toString(), channel, areas[channel], ws)
     channels[channel].forEach(function each(client) {
       if (client.readyState === WebSocket.OPEN) {
