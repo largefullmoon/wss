@@ -34,7 +34,6 @@ class MqttHandler {
   }
 
   go() {
-    console.log("starting mqtt handler ", this.zone_id)
     const tag_ids = []
     var wscon = new WebSocket("wss://websocket.cotrax.io:8443/" + this.zone_id);
 
@@ -54,7 +53,6 @@ class MqttHandler {
       this.mqttClient.subscribe(this.angle_topic);
       this.mqttClient.subscribe(this.manuf_topic);
       this.mqttClient.subscribe(this.position_topic);
-      console.log(`mqtt client connected`);
     });
     // this.mqttClient.on('close', () => {
     //   if (this.mqttClient) {
@@ -90,7 +88,6 @@ class MqttHandler {
             },
           ])
           .then(() => {
-            console.log("Data written to InfluxDB.");
           })
           .catch((err) => {
             console.error(`Error writing data to InfluxDB: ${err}`);

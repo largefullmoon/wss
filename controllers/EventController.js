@@ -41,7 +41,7 @@ wss.on('connection', (ws, req) => {
     clients.push(ws)
 });
 httpsServer.listen(9000, () => {
-    console.log('WSS server running on 8080');
+    console.log('WSS server running on 9000');
 });
 function broadcastToClients(data) {
     clients.forEach((client) => {
