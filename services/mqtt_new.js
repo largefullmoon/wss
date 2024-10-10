@@ -174,6 +174,7 @@ class MqttHandler {
               ...data,
               tag_id: paramsPosition.tag_id
             }
+            console.log("Received message" + wsmessage);
             wscon.send(JSON.stringify(wsmessage).toString());
             influx
               .writePoints([
