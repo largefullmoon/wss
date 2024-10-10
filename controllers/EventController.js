@@ -13,8 +13,8 @@ const influx = new Influx.InfluxDB({
 });
 const WebSocket = require('ws');
 const serverOptions = {
-    cert: fs.readFileSync('/etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
-    key: fs.readFileSync('/etc/nginx/ssl/cotrax.io.key'),  // Path to private key
+    cert: fs.readFileSync('/etc/letsencrypt/live/event.cotrax.io/fullchain.pem'),    // Path to SSL certificate
+    key: fs.readFileSync('/etc/letsencrypt/live/event.cotrax.io/privkey.pem'),  // Path to private key
 };
 const httpsServer = https.createServer(serverOptions);
 
