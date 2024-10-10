@@ -12,13 +12,13 @@ const influx = new Influx.InfluxDB({
     database: "fama",
 });
 const WebSocket = require('ws');
-const serverOptions = {
-    cert: fs.readFileSync('/etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
-    key: fs.readFileSync('/etc/nginx/ssl/cotrax.io.key'),  // Path to private key
-  };
-const httpsServer = https.createServer(serverOptions);
+// const serverOptions = {
+//     cert: fs.readFileSync('/etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
+//     key: fs.readFileSync('/etc/nginx/ssl/cotrax.io.key'),  // Path to private key
+//   };
+// const httpsServer = https.createServer(serverOptions);
 
-const wss = new WebSocket.Server({ server: httpsServer });
+const wss = new WebSocket.Server({ port: 9000 });
 const clients = [];
 // const { ClickHouse } = require('@clickhouse/client');
 wss.on('connection', (ws, req) => {
@@ -40,9 +40,9 @@ wss.on('connection', (ws, req) => {
     });
     clients.push(ws)
 });
-httpsServer.listen(9000, () => {
-    console.log('WSS server running on 9000');
-});
+// httpsServer.listen(9000, () => {
+//     console.log('WSS server running on 9000');
+// });
 function broadcastToClients(data) {
     clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
