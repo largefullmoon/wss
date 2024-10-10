@@ -36,6 +36,7 @@ class MqttHandler {
   go() {
     const tag_ids = []
     // var wscon = new WebSocket("wss://websocket.cotrax.io:8443/" + this.zone_id);
+    var wscon = new WebSocket("ws://localhost:8080/" + this.zone_id);
 
     var anglePattern = this.angle_topic.slice(0, -1) + "+antenna_id/+tag_id";
     var manufPattern = this.manuf_topic.slice(0, -1) + "+antenna_id/+tag_id";
@@ -173,7 +174,7 @@ class MqttHandler {
               ...data,
               tag_id: paramsPosition.tag_id
             }
-            // wscon.send(JSON.stringify(wsmessage).toString());
+            wscon.send(JSON.stringify(wsmessage).toString());
             influx
               .writePoints([
                 {
