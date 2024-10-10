@@ -1,7 +1,7 @@
 var express = require('express');
 var app = express();
 var mqttHandler = require('./services/mqtt_new');
-var { checkEvent } = require('./controllers/EventController.js');
+// var { checkEvent } = require('./controllers/EventController.js');
 const Area = require('./models/Area');
 const Map = require('./models/Map');
 const url = require('url');
@@ -42,7 +42,7 @@ wss.on('connection', (ws, req) => {
   channels[channel].push(ws);
   ws.on('message', async (message) => {
     console.log("websocket got the message from mqtt")
-    await checkEvent(message.toString(), channel, areas[channel], ws)
+    // await checkEvent(message.toString(), channel, areas[channel], ws)
     channels[channel].forEach(function each(client) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message.toString());
