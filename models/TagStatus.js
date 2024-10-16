@@ -22,6 +22,14 @@ const tagSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        battery_status: {
+            type: String,
+            default: null,
+        },
+        is_new: {
+            type: Boolean,
+            default: false,
+        }
     },
     { timestamps: true }
 );

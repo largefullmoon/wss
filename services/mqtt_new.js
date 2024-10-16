@@ -98,6 +98,12 @@ class MqttHandler {
         var paramsManuf = MQTTPattern.exec(manufPattern, topic)
         if (paramsManuf) {
           const data = JSON.parse(message.toString());
+          let wsmessage = {
+            ...data,
+            tag_id: paramsManuf.tag_id,
+            "type": "manuf_data"
+          }
+          wscon.send(JSON.stringify(wsmessage).toString());
           if (!tag_ids.includes(paramsManuf.tag_id)) {
             tag_ids.push(paramsManuf.tag_id)
             const tag = await TagStatus.findOne({ tag_id: paramsManuf.tag_id, zone_id: this.zone_id });
@@ -113,6 +119,7 @@ class MqttHandler {
               tag.manuf_data = data
               tag.time = new Date();
               tag.status = status
+              tag.is_new = false
               await tag.save();
             } else {
               // Tag does not exist, create a new one
@@ -122,6 +129,7 @@ class MqttHandler {
                 zone_id: this.zone_id,
                 time: new Date(),
                 status: status,
+                is_new: true
               });
               await newTag.save();
             }
@@ -172,9 +180,9 @@ class MqttHandler {
             const data = JSON.parse(message.toString());
             let wsmessage = {
               ...data,
-              tag_id: paramsPosition.tag_id
+              tag_id: paramsPosition.tag_id,
+              "type": "position_data"
             }
-            console.log("Received message" + wsmessage);
             wscon.send(JSON.stringify(wsmessage).toString());
             influx
               .writePoints([
