@@ -7,6 +7,7 @@ const Event = require('../models/Event');
 const Influx = require('influx');
 const https = require('https');
 const fs = require('fs');
+const TagStatus = require('../models/TagStatus.js');
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
     database: "fama",
@@ -124,119 +125,119 @@ async function checkEvent(event, zone_id, areas, ws) {
         const map = await Map.findOne({ zone: zone_id })
         areas = await Area.find({ map: map._id })
     }
-    for (let i = 0; i < areas.length; i++) {
-        const currentStatus = await getDeviceInfo(tagInfo.tag_id);
-        if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
-            if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
-                await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
-                // if (tagEvents[tagInfo.tag_id]) {
-                //     if (tagEvents[tagInfo.tag_id].status == "in" && tagEvents[tagInfo.tag_id].area == areas[i]._id)
-                //         continue
-                // }
-                // tagEvents[tagInfo.tag_id].status = "in"
-                // tagEvents[tagInfo.tag_id].area = areas[i]._id
-                const data = {
-                    'zone_id': zone_id,
-                    'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id})`,
-                }
-                broadcastToClients(data)
-                const type = "in area"
-                const object = tagInfo.tag_id
-                const zone = zone_id
-                const area = areas[i]._id
-                const information = "Tag cross in Area"
-                const newEvent = new Event({
-                    type,
-                    object,
-                    zone,
-                    area,
-                    information
-                });
-                await newEvent.save();
-                // const query = `
-                //     CREATE TABLE IF NOT EXISTS event (
-                //         id UUID DEFAULT generateUUIDv4(),
-                //         type String,
-                //         object String,
-                //         zone String,
-                //         area String,
-                //         information String,
-                //         timestamp DateTime
-                //     )
-                //     ENGINE = MergeTree
-                //     PRIMARY KEY (id, timestamp)
-                //     `;
+    if (tagInfo.type == "position_data") {
 
-                // // Execute the query
-                // await clickhouse.query(query).toPromise();
-                // const insertQuery = `
-                //     INSERT INTO event (type, object, zone, area, information)
-                //     VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-                // `;
-                // await clickhouse.query(insertQuery).toPromise();
-            }
-        } else {
-            if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
-                setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
-                // if (tagEvents[tagInfo.tag_id]) {
-                //     if (tagEvents[tagInfo.tag_id].status == "out" && tagEvents[tagInfo.tag_id].area == areas[i]._id)
-                //         continue
-                // }
-                // tagEvents[tagInfo.tag_id].status = "out"
-                // tagEvents[tagInfo.tag_id].area = areas[i]._id
-                const data = {
-                    'zone_id': zone_id,
-                    'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id})`,
-                }
-                broadcastToClients(data)
-                const type = "out area"
-                const object = tagInfo.tag_id
-                const zone = zone_id
-                const area = areas[i]._id
-                const information = "Tag left the Area"
-                const newEvent = new Event({
-                    type,
-                    object,
-                    zone,
-                    area,
-                    information
-                });
-                await newEvent.save();
-                // const query = `
-                //     CREATE TABLE IF NOT EXISTS event (
-                //         id UUID DEFAULT generateUUIDv4(),
-                //         type String,
-                //         object String,
-                //         zone String,
-                //         area String,
-                //         information String,
-                //         timestamp DateTime
-                //     )
-                //     ENGINE = MergeTree
-                //     PRIMARY KEY (id, timestamp)
-                //     `;
+        for (let i = 0; i < areas.length; i++) {
+            const currentStatus = await getDeviceInfo(tagInfo.tag_id);
+            if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
+                if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
+                    await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
+                    const data = {
+                        'zone_id': zone_id,
+                        'tag_id': tagInfo.tag_id,
+                        'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id})`,
+                    }
+                    broadcastToClients(data)
+                    const category = 'location'
+                    const type = "tag entered the area"
+                    const object = tagInfo.tag_id
+                    const zone = zone_id
+                    const area = areas[i]._id
+                    const information = "Tag cross in Area"
+                    const newEvent = new Event({
+                        category,
+                        type,
+                        object,
+                        zone,
+                        area,
+                        information
+                    });
+                    await newEvent.save();
+                    // const query = `
+                    //     CREATE TABLE IF NOT EXISTS event (
+                    //         id UUID DEFAULT generateUUIDv4(),
+                    //         type String,
+                    //         object String,
+                    //         zone String,
+                    //         area String,
+                    //         information String,
+                    //         timestamp DateTime
+                    //     )
+                    //     ENGINE = MergeTree
+                    //     PRIMARY KEY (id, timestamp)
+                    //     `;
 
-                // // Execute the query
-                // await clickhouse.query(query).toPromise();
-                // const insertQuery = `
-                //     INSERT INTO event (type, object, zone, area, information)
-                //     VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-                // `;
-                // await clickhouse.query(insertQuery).toPromise();
+                    // // Execute the query
+                    // await clickhouse.query(query).toPromise();
+                    // const insertQuery = `
+                    //     INSERT INTO event (type, object, zone, area, information)
+                    //     VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
+                    // `;
+                    // await clickhouse.query(insertQuery).toPromise();
+                }
+            } else {
+                if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
+                    setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
+                    const data = {
+                        'zone_id': zone_id,
+                        'tag_id': tagInfo.tag_id,
+                        'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id})`,
+                    }
+                    broadcastToClients(data)
+                    const category = 'location'
+                    const type = "tag exited the area"
+                    const object = tagInfo.tag_id
+                    const zone = zone_id
+                    const area = areas[i]._id
+                    const information = "Tag left the Area"
+                    const newEvent = new Event({
+                        category,
+                        type,
+                        object,
+                        zone,
+                        area,
+                        information
+                    });
+                    await newEvent.save();
+                    // const query = `
+                    //     CREATE TABLE IF NOT EXISTS event (
+                    //         id UUID DEFAULT generateUUIDv4(),
+                    //         type String,
+                    //         object String,
+                    //         zone String,
+                    //         area String,
+                    //         information String,
+                    //         timestamp DateTime
+                    //     )
+                    //     ENGINE = MergeTree
+                    //     PRIMARY KEY (id, timestamp)
+                    //     `;
+
+                    // // Execute the query
+                    // await clickhouse.query(query).toPromise();
+                    // const insertQuery = `
+                    //     INSERT INTO event (type, object, zone, area, information)
+                    //     VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
+                    // `;
+                    // await clickhouse.query(insertQuery).toPromise();
+                }
             }
         }
     }
     if (!tagIds.includes(tagInfo.tag_id)) {
-        const type = "detected"
+        const type = "tag_detected"
         const object = tagInfo.tag_id
         const zone = zone_id
         const data = {
+            'tag_id': tagInfo.tag_id,
             'zone_id': zone_id,
             'message': `New Tag (${tagInfo.tag_id}) is detected on Zone (${zone_id})`,
         }
         broadcastToClients(data)
         const information = "New tag is detected on Zone"
+        const category = 'info'
         const newEvent = new Event({
+            category,
             type,
             object,
             zone,
@@ -267,6 +268,128 @@ async function checkEvent(event, zone_id, areas, ws) {
     }
 
 }
+async function checkTagStatus() {
+    const tags = await TagStatus.find()
+    tags.forEach(async (tag) => {
+        const currentTime = new Date();
+        const tagTime = new Date(tag.time);
+        const timeDifference = currentTime - tagTime;
+        if (timeDifference > 5 * 60 * 1000 && tag.status != 'no data' && tag.status != 'lost') {
+            const category = "info";
+            tag.status = 'no data'; // Update the status
+            await tag.save(); // Save the updated tag
+            const data = {
+                'tag_id': tag.tag_id,
+                'zone_id': tag.zone_id,
+                'message': `Tag (${tag.tag_id}) sent no data`,
+            }
+            broadcastToClients(data)
+            const type = "tag_nodata";
+            const object = tag.tag_id;
+            const zone = tag.zone_id;
+            const information = `Tag (${tag.tag_id}) sent no data`;
+            console.log(information, "information")
+            const newEvent = new Event({
+                category,
+                type,
+                object,
+                zone,
+                information
+            });
+            await newEvent.save();
+        }
+        if (timeDifference > 120 * 60 * 1000 && tag.status != 'lost') {
+            const category = "info";
+            tag.status = 'lost'; // Update the status
+            await tag.save(); // Save the updated tag
+            const data = {
+                'tag_id': tag.tag_id,
+                'zone_id': tag.zone_id,
+                'message': `Tag (${tag.tag_id}) is lost`,
+            }
+            broadcastToClients(data)
+            const type = "tag_lost";
+            const object = tag.tag_id;
+            const zone = tag.zone_id;
+            const information = `Tag (${tag.tag_id}) is lost`;
+            console.log(information, "information")
+            const newEvent = new Event({
+                category,
+                type,
+                object,
+                zone,
+                information
+            });
+            await newEvent.save();
+        }
+        if (tag.is_new == true) {
+            const category = "info";
+            tag.is_new = false; // Update the status
+            await tag.save(); // Save the updated tag
+            const data = {
+                'tag_id': tag.tag_id,
+                'zone_id': tag.zone_id,
+                'message': `New tag(${tag.tag_id}) is detected`,
+            }
+            broadcastToClients(data)
+            const type = "tag_detected";
+            const object = tag.tag_id;
+            const zone = tag.zone_id;
+            const information = `New tag(${tag.tag_id}) is detected`;
+            console.log(information, "information")
+            const newEvent = new Event({
+                category,
+                type,
+                object,
+                zone,
+                information
+            });
+            await newEvent.save();
+        }
+        if (tag.manuf_data) {
+            const category = "issue";
+            let type = ""
+            if (tag.manuf_data.vbatt >= 3.7 && tag.battery_status != 'battery_good') {
+                content = "battery is good"
+                type = "battery_good"
+            }
+            if (tag.manuf_data.vbatt >= 2.3 && tag.battery_status != 'battery_middle') {
+                content = "battery is middle"
+                type = "battery_middle"
+            }
+            if (tag.manuf_data.vbatt < 2.3 && tag.battery_status != 'battery_low') {
+                content = "battery is low"
+                type = "battery_low"
+            }
+            if (type != "") {
+                const data = {
+                    'tag_id': tag.tag_id,
+                    'zone_id': tag.zone_id,
+                    'message': `New tag(${tag.tag_id})'s` + content,
+                }
+                const object = tag.tag_id;
+                const zone = tag.zone_id;
+                const information = `New tag(${tag.tag_id})'s ` + content;
+                tag.battery_status = type
+                await tag.save();
+                console.log(information, "information")
+                broadcastToClients(data)
+                const newEvent = new Event({
+                    category,
+                    type,
+                    object,
+                    zone,
+                    information
+                });
+                await newEvent.save();
+            }
+        }
+    })
+
+}
+setInterval(() => {
+    checkTagStatus()
+}, 10000);
 module.exports = {
     checkEvent
 };

@@ -41,13 +41,15 @@ wss.on('connection', (ws, req) => {
   }
   channels[channel].push(ws);
   ws.on('message', async (message) => {
-    console.log("websocket got the message from mqtt")
+    const tagInfos = JSON.parse(message.toString())
+    if (tagInfos.type == "position_data") {
+      channels[channel].forEach(function each(client) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message.toString());
+        }
+      });
+    }
     await checkEvent(message.toString(), channel, areas[channel], ws)
-    channels[channel].forEach(function each(client) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message.toString());
-      }
-    });
   });
 
   ws.on('close', () => {
@@ -129,23 +131,3 @@ async function getAllTagData() {
     });
 }
 getAllTagData()
-
-async function checkTagStatus() {
-  const tags = await TagStatus.find()
-  tags.forEach(async (tag) => {
-    const currentTime = new Date();
-    const tagTime = new Date(tag.time);
-    const timeDifference = currentTime - tagTime;
-    if (timeDifference > 5 * 60 * 1000) {
-      tag.status = 'no data'; // Update the status
-      await tag.save(); // Save the updated tag
-    }
-    if (timeDifference > 120 * 60 * 1000) {
-      tag.status = 'lost'; // Update the status
-      await tag.save(); // Save the updated tag
-    }
-  })
-}
-setInterval(() => {
-  checkTagStatus()
-}, 300000);
