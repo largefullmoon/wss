@@ -8,6 +8,8 @@ const Influx = require('influx');
 const https = require('https');
 const fs = require('fs');
 const TagStatus = require('../models/TagStatus.js');
+const EventType = require('../models/EventType.js');
+const Zone = require('../models/Zone.js');
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
     database: "fama",
@@ -347,17 +349,28 @@ async function checkTagStatus() {
             await newEvent.save();
         }
         if (tag.manuf_data) {
+            const zone = Zone.findById(tag.zone_id)
+            const eventType1 = EventType.findOne({ company_id: zone.company, condition: "battery level is middle" })
+            let middle_standard = 3.7
+            let low_standard = 2.3
+            if (eventType1) {
+                middle_standard = eventType1['standard_value']
+            }
+            const eventType2 = EventType.findOne({ company_id: zone.company, condition: "battery level is low" })
+            if (eventType2) {
+                low_standard = eventType2['standard_value']
+            }
             const category = "issue";
             let type = ""
-            if (tag.manuf_data.vbatt >= 3.7 && tag.battery_status != 'battery_good') {
+            if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != 'battery_good') {
                 content = "battery is good"
                 type = "battery_good"
             }
-            if (tag.manuf_data.vbatt >= 2.3 && tag.battery_status != 'battery_middle') {
+            if (tag.manuf_data.vbatt >= low_standard && tag.battery_status != 'battery_middle') {
                 content = "battery is middle"
                 type = "battery_middle"
             }
-            if (tag.manuf_data.vbatt < 2.3 && tag.battery_status != 'battery_low') {
+            if (tag.manuf_data.vbatt < low_standard && tag.battery_status != 'battery_low') {
                 content = "battery is low"
                 type = "battery_low"
             }
