@@ -9,7 +9,6 @@ const https = require('https');
 const fs = require('fs');
 const TagStatus = require('../models/TagStatus.js');
 const EventType = require('../models/EventType.js');
-const Zone = require('../models/Zone.js');
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
     database: "fama",
