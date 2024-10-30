@@ -3,24 +3,32 @@ const Zone = require('../models/Zone');
 const Area = require('../models/Area');
 const Asset = require('../models/Asset');
 const Map = require('../models/Map');
+const Action = require('../models/Action');
 const Event = require('../models/Event');
-const Influx = require('influx');
-const https = require('https');
-const fs = require('fs');
 const TagStatus = require('../models/TagStatus.js');
 const EventType = require('../models/EventType.js');
+const WebHookModel = require('../models/webHook.js');
+const Influx = require('influx');
+const axios = require('axios');
+const nodemailer = require('nodemailer');
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
     database: "fama",
 });
 const WebSocket = require('ws');
-// const serverOptions = {
-//     cert: fs.readFileSync('/etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
-//     key: fs.readFileSync('/etc/nginx/ssl/cotrax.io.key'),  // Path to private key
-//   };
-// const httpsServer = https.createServer(serverOptions);
-
 const wss = new WebSocket.Server({ port: 9000 });
+const transporter = nodemailer.createTransport({
+    host: '185.62.188.4',
+    port: 465,
+    secure: true,
+    auth: {
+        user: 'test@tonytest.top',
+        pass: '(Y$f9}[,0)dy',
+    },
+    tls: {
+        rejectUnauthorized: false
+    }
+});
 const clients = [];
 // const { ClickHouse } = require('@clickhouse/client');
 wss.on('connection', (ws, req) => {
@@ -42,10 +50,91 @@ wss.on('connection', (ws, req) => {
     });
     clients.push(ws)
 });
-// httpsServer.listen(9000, () => {
-//     console.log('WSS server running on 9000');
-// });
-function broadcastToClients(data) {
+const runWebHook = async (webHook, data, type) => {
+    if (webHook.type == "email") {
+        const text = data.message
+        const mailOptions = {
+            from: 'test@tonytest.top',
+            to: webhookUrl.email,
+            subject: 'Alert from Cotrax',
+            text: text,
+            html: `<b>${text}</b>`,
+        };
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.log('Error occurred:', error);
+            } else {
+                console.log('Email sent:', text);
+            }
+        });
+    }
+    if (webHook.type == "webhook") {
+        try {
+            const params = webHook.params;
+            let postData = {}
+            const asset = await Asset.findOne({ tag: data['tag_id'] });
+            for (let i = 0; i < params.length; i++) {
+                if (params[i].type == "default") {
+                    switch (params[i].related) {
+                        case "area_id":
+                            postData[params[i].key] = data[params[i].related];
+                            break;
+                        case "area_name":
+                            postData[params[i].key] = data[params[i].related];
+                            break;
+                        case "tag_id":
+                            postData[params[i].key] = data[params[i].related];
+                            break;
+                        case "zone_id":
+                            postData[params[i].key] = data[params[i].related];
+                            break;
+                        case "zone_name":
+                            const zone = await Zone.findById(data['zone_id']);
+                            postData[params[i].key] = zone.name;
+                        case "asset_id":
+                            if (asset) {
+                                postData[params[i].key] = asset._id;
+                            }
+                            break;
+                        case "asset_name":
+                            if (asset) {
+                                postData[params[i].key] = asset.title;
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                if (params[i].type == "custom") {
+                    postData[params[i].key] = params[i].value
+                }
+            }
+            const response = await axios.post(webHook.webhookUrl, postData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            console.log('Response:', response);
+        } catch (error) {
+            console.error('Error sending POST request:', error.message);
+        }
+    }
+}
+const broadcastToClients = async (data, type, category) => {
+    const zone = await Zone.findOne(data['zone_id']);
+    const actions = await Action.find({ company_id: zone.company.toString() }).populate('eventType').populate('webHook');
+    actions.forEach(async (action) => {
+        if (action.eventType.category == category && action.eventType.condition.indexOf(type) >= 0) {
+            if (action.status == 1 && action.webHook && action.targetType) {
+                if (action.executionType == "once" && action.count >= 1) {
+                } else {
+                    await runWebHook(action.webHook, data, type);
+                    action.count = action.count + 1;
+                    await action.save();
+                }
+            }
+        }
+    });
     clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(data));
@@ -83,7 +172,6 @@ const getDeviceInfo = async (deviceId) => {
     try {
         const key = `device:${deviceId}`;
         const jsonData = await client.hGet(key, 'deviceInfo');
-
         // Parse the JSON string back into an object
         if (jsonData) {
             const deviceInfo = JSON.parse(jsonData);
@@ -133,14 +221,8 @@ async function checkEvent(event, zone_id, areas, ws) {
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                     await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
-                    const data = {
-                        'zone_id': zone_id,
-                        'tag_id': tagInfo.tag_id,
-                        'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id})`,
-                    }
-                    broadcastToClients(data)
                     const category = 'location'
-                    const type = "tag entered the area"
+                    const type = "tag_entered_area"
                     const object = tagInfo.tag_id
                     const zone = zone_id
                     const area = areas[i]._id
@@ -154,6 +236,14 @@ async function checkEvent(event, zone_id, areas, ws) {
                         information
                     });
                     await newEvent.save();
+                    const data = {
+                        'zone_id': zone_id,
+                        'tag_id': tagInfo.tag_id,
+                        'area_id': tagInfo.tag_id,
+                        'area_name': tagInfo.tag_id,
+                        'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
+                    }
+                    broadcastToClients(data, "tag_entered_area", "location")
                     // const query = `
                     //     CREATE TABLE IF NOT EXISTS event (
                     //         id UUID DEFAULT generateUUIDv4(),
@@ -179,14 +269,8 @@ async function checkEvent(event, zone_id, areas, ws) {
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
                     setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
-                    const data = {
-                        'zone_id': zone_id,
-                        'tag_id': tagInfo.tag_id,
-                        'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id})`,
-                    }
-                    broadcastToClients(data)
                     const category = 'location'
-                    const type = "tag exited the area"
+                    const type = "tag_exited_area"
                     const object = tagInfo.tag_id
                     const zone = zone_id
                     const area = areas[i]._id
@@ -200,6 +284,14 @@ async function checkEvent(event, zone_id, areas, ws) {
                         information
                     });
                     await newEvent.save();
+                    const data = {
+                        'zone_id': zone_id,
+                        'tag_id': tagInfo.tag_id,
+                        'area_id': tagInfo.tag_id,
+                        'area_name': tagInfo.tag_id,
+                        'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
+                    }
+                    broadcastToClients(data, "tag_exited_area", "location")
                     // const query = `
                     //     CREATE TABLE IF NOT EXISTS event (
                     //         id UUID DEFAULT generateUUIDv4(),
@@ -225,53 +317,54 @@ async function checkEvent(event, zone_id, areas, ws) {
             }
         }
     }
-    if (!tagIds.includes(tagInfo.tag_id)) {
-        const type = "tag_detected"
-        const object = tagInfo.tag_id
-        const zone = zone_id
-        const data = {
-            'tag_id': tagInfo.tag_id,
-            'zone_id': zone_id,
-            'message': `New Tag (${tagInfo.tag_id}) is detected on Zone (${zone_id})`,
-        }
-        broadcastToClients(data)
-        const information = "New tag is detected on Zone"
-        const category = 'info'
-        const newEvent = new Event({
-            category,
-            type,
-            object,
-            zone,
-            information
-        });
-        await newEvent.save();
-        // const query = `
-        //             CREATE TABLE IF NOT EXISTS event (
-        //                 id UUID DEFAULT generateUUIDv4(),
-        //                 type String,
-        //                 object String,
-        //                 zone String,
-        //                 area String,
-        //                 information String,
-        //                 timestamp DateTime
-        //             )
-        //             ENGINE = MergeTree
-        //             PRIMARY KEY (id, timestamp)
-        //             `;
-        // // Execute the query
-        // await clickhouse.query(query).toPromise();
-        // const insertQuery = `
-        //             INSERT INTO event (type, object, zone, area, information)
-        //             VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-        //         `;
-        // await clickhouse.query(insertQuery).toPromise();
-        tagIds = await getTagsLastLocation(zone_id);
-    }
+    // if (!tagIds.includes(tagInfo.tag_id)) {
+    //     const type = "tag_detected"
+    //     const object = tagInfo.tag_id
+    //     const zone = zone_id
+    //     const data = {
+    //         'tag_id': tagInfo.tag_id,
+    //         'zone_id': zone_id,
+    //         'message': `New Tag (${tagInfo.tag_id}) is detected on Zone (${zone_id})`,
+    //     }
+    //     broadcastToClients(data)
+    //     const information = "New tag is detected on Zone"
+    //     const category = 'info'
+    //     const newEvent = new Event({
+    //         category,
+    //         type,
+    //         object,
+    //         zone,
+    //         information
+    //     });
+    //     await newEvent.save();
+    //     // const query = `
+    //     //             CREATE TABLE IF NOT EXISTS event (
+    //     //                 id UUID DEFAULT generateUUIDv4(),
+    //     //                 type String,
+    //     //                 object String,
+    //     //                 zone String,
+    //     //                 area String,
+    //     //                 information String,
+    //     //                 timestamp DateTime
+    //     //             )
+    //     //             ENGINE = MergeTree
+    //     //             PRIMARY KEY (id, timestamp)
+    //     //             `;
+    //     // // Execute the query
+    //     // await clickhouse.query(query).toPromise();
+    //     // const insertQuery = `
+    //     //             INSERT INTO event (type, object, zone, area, information)
+    //     //             VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
+    //     //         `;
+    //     // await clickhouse.query(insertQuery).toPromise();
+    //     tagIds = await getTagsLastLocation(zone_id);
+    // }
 
 }
 async function checkTagStatus() {
     const tags = await TagStatus.find()
     tags.forEach(async (tag) => {
+        const zone = await Zone.findById(tag.zone_id)
         const currentTime = new Date();
         const tagTime = new Date(tag.time);
         const timeDifference = currentTime - tagTime;
@@ -282,14 +375,13 @@ async function checkTagStatus() {
             const data = {
                 'tag_id': tag.tag_id,
                 'zone_id': tag.zone_id,
-                'message': `Tag (${tag.tag_id}) sent no data`,
+                'message': `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zone.title})`
             }
-            broadcastToClients(data)
+            broadcastToClients(data, "tag_nodata", "info")
             const type = "tag_nodata";
             const object = tag.tag_id;
             const zone = tag.zone_id;
-            const information = `Tag (${tag.tag_id}) sent no data`;
-            console.log(information, "information")
+            const information = `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zone.title})`
             const newEvent = new Event({
                 category,
                 type,
@@ -306,14 +398,13 @@ async function checkTagStatus() {
             const data = {
                 'tag_id': tag.tag_id,
                 'zone_id': tag.zone_id,
-                'message': `Tag (${tag.tag_id}) is lost`,
+                'message': `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zone.title})`
             }
-            broadcastToClients(data)
+            broadcastToClients(data, "tag_lost", "info")
             const type = "tag_lost";
             const object = tag.tag_id;
             const zone = tag.zone_id;
-            const information = `Tag (${tag.tag_id}) is lost`;
-            console.log(information, "information")
+            const information = `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zone.title})`
             const newEvent = new Event({
                 category,
                 type,
@@ -330,14 +421,13 @@ async function checkTagStatus() {
             const data = {
                 'tag_id': tag.tag_id,
                 'zone_id': tag.zone_id,
-                'message': `New tag(${tag.tag_id}) is detected`,
+                'message': `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zone.title})`
             }
-            broadcastToClients(data)
+            broadcastToClients(data, "tag_detected", "info")
             const type = "tag_detected";
             const object = tag.tag_id;
             const zone = tag.zone_id;
-            const information = `New tag(${tag.tag_id}) is detected`;
-            console.log(information, "information")
+            const information = `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zone.title})`
             const newEvent = new Event({
                 category,
                 type,
@@ -348,44 +438,40 @@ async function checkTagStatus() {
             await newEvent.save();
         }
         if (tag.manuf_data) {
-            const zone = Zone.findById(tag.zone_id)
-            const eventType1 = EventType.findOne({ company_id: zone.company, condition: "battery level is middle" })
+            const zone = await Zone.findById(tag.zone_id)
+            const eventType = await EventType.findOne({ company_id: zone.company.toString(), category: "issue" })
             let middle_standard = 3.7
             let low_standard = 2.3
-            if (eventType1) {
-                middle_standard = eventType1['standard_value']
-            }
-            const eventType2 = EventType.findOne({ company_id: zone.company, condition: "battery level is low" })
-            if (eventType2) {
-                low_standard = eventType2['standard_value']
+            if (eventType) {
+                middle_standard = parseFloat(eventType.standard_middle_value)
+                low_standard = parseFloat(eventType.standard_low_value)
             }
             const category = "issue";
             let type = ""
-            if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != 'battery_good') {
-                content = "battery is good"
+            if (tag.manuf_data.vbatt >= middle_standard) {
+                content = `battery(${tag.manuf_data.vbatt}) is good`
                 type = "battery_good"
             }
-            if (tag.manuf_data.vbatt >= low_standard && tag.battery_status != 'battery_middle') {
-                content = "battery is middle"
+            if (tag.manuf_data.vbatt >= low_standard) {
+                content = `battery(${tag.manuf_data.vbatt}) is middle`
                 type = "battery_middle"
             }
-            if (tag.manuf_data.vbatt < low_standard && tag.battery_status != 'battery_low') {
-                content = "battery is low"
+            if (tag.manuf_data.vbatt < low_standard) {
+                content = `battery(${tag.manuf_data.vbatt}) is low`
                 type = "battery_low"
             }
             if (type != "") {
                 const data = {
                     'tag_id': tag.tag_id,
                     'zone_id': tag.zone_id,
-                    'message': `New tag(${tag.tag_id})'s` + content,
+                    'message': `tag(${tag.tag_id})'s` + content,
                 }
                 const object = tag.tag_id;
                 const zone = tag.zone_id;
-                const information = `New tag(${tag.tag_id})'s ` + content;
+                const information = `tag(${tag.tag_id})'s ` + content;
+                broadcastToClients(data, type, "issue")
                 tag.battery_status = type
                 await tag.save();
-                console.log(information, "information")
-                broadcastToClients(data)
                 const newEvent = new Event({
                     category,
                     type,
@@ -401,7 +487,7 @@ async function checkTagStatus() {
 }
 setInterval(() => {
     checkTagStatus()
-}, 10000);
+}, 3000);
 module.exports = {
     checkEvent
 };
