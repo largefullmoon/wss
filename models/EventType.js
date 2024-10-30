@@ -14,7 +14,10 @@ const eventTypeSchema = new mongoose.Schema(
             type: Object,
             default: null,
         },
-        standard_value: {
+        standard_middle_value: {
+            type: String,
+        },
+        standard_low_value: {
             type: String,
         },
     },
