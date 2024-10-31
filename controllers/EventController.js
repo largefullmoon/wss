@@ -364,7 +364,7 @@ async function checkEvent(event, zone_id, areas, ws) {
 async function checkTagStatus() {
     const tags = await TagStatus.find()
     tags.forEach(async (tag) => {
-        const zone = await Zone.findById(tag.zone_id)
+        const zoneDetail = await Zone.findById(tag.zone_id)
         const currentTime = new Date();
         const tagTime = new Date(tag.time);
         const timeDifference = currentTime - tagTime;
@@ -375,13 +375,13 @@ async function checkTagStatus() {
             const data = {
                 'tag_id': tag.tag_id,
                 'zone_id': tag.zone_id,
-                'message': `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zone.title})`
+                'message': `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zoneDetail?.title})`
             }
             broadcastToClients(data, "tag_nodata", "info")
             const type = "tag_nodata";
             const object = tag.tag_id;
             const zone = tag.zone_id;
-            const information = `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zone.title})`
+            const information = `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zoneDetail?.title})`
             const newEvent = new Event({
                 category,
                 type,
@@ -398,13 +398,13 @@ async function checkTagStatus() {
             const data = {
                 'tag_id': tag.tag_id,
                 'zone_id': tag.zone_id,
-                'message': `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zone.title})`
+                'message': `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zoneDetail?.title})`
             }
             broadcastToClients(data, "tag_lost", "info")
             const type = "tag_lost";
             const object = tag.tag_id;
             const zone = tag.zone_id;
-            const information = `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zone.title})`
+            const information = `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zoneDetail?.title})`
             const newEvent = new Event({
                 category,
                 type,
@@ -421,13 +421,13 @@ async function checkTagStatus() {
             const data = {
                 'tag_id': tag.tag_id,
                 'zone_id': tag.zone_id,
-                'message': `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zone.title})`
+                'message': `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zoneDetail?.title})`
             }
             broadcastToClients(data, "tag_detected", "info")
             const type = "tag_detected";
             const object = tag.tag_id;
             const zone = tag.zone_id;
-            const information = `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zone.title})`
+            const information = `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zoneDetail?.title})`
             const newEvent = new Event({
                 category,
                 type,
@@ -487,7 +487,7 @@ async function checkTagStatus() {
 }
 setInterval(() => {
     checkTagStatus()
-}, 3000);
+}, 5 * 60 * 1000);
 module.exports = {
     checkEvent
 };
