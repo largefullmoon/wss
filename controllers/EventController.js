@@ -13,7 +13,7 @@ const axios = require('axios');
 const nodemailer = require('nodemailer');
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
-    database: "fama",
+    database: "prod",
 });
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 9000 });

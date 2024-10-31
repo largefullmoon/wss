@@ -15,7 +15,7 @@ const https = require('https');
 const TagStatus = require('./models/TagStatus.js');
 const influx = new Influx.InfluxDB({
   host: "185.61.139.41",
-  database: "fama",
+  database: "prod",
 });
 mqttObj = [{}];
 let channels = {};
