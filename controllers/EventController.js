@@ -448,15 +448,15 @@ async function checkTagStatus() {
             }
             const category = "issue";
             let type = ""
-            if (tag.manuf_data.vbatt >= middle_standard) {
+            if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != "battery_good") {
                 content = `battery(${tag.manuf_data.vbatt}) is good`
                 type = "battery_good"
             }
-            if (tag.manuf_data.vbatt >= low_standard) {
+            if (tag.manuf_data.vbatt >= low_standard && tag.battery_status != "battery_middle") {
                 content = `battery(${tag.manuf_data.vbatt}) is middle`
                 type = "battery_middle"
             }
-            if (tag.manuf_data.vbatt < low_standard) {
+            if (tag.manuf_data.vbatt < low_standard && tag.battery_status != "battery_low") {
                 content = `battery(${tag.manuf_data.vbatt}) is low`
                 type = "battery_low"
             }
