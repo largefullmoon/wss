@@ -56,13 +56,14 @@ wss.on('connection', (ws, req) => {
     channels[channel] = channels[channel].filter((client) => client !== ws);
   });
 });
-// httpsServer.listen(8080, () => {
-//   console.log('WSS server running on 8080');
-// });
+
+/**
+ * Start the server and connect to the MQTT servers defined in the database.
+ * Once connected, start the MQTT handlers and print the MQTT server ids and their corresponding index.
+ * If no MQTT servers are found in the database, print a message and wait for actions.
+ */
 async function startServer() {
-
   const wsserver = app.listen(8000)
-
   const mqttServers = await mqttServer.find();
   if (mqttServers) {
     mqttServers.forEach((server, index) => {
@@ -78,7 +79,6 @@ async function startServer() {
       );
       mqttObj[index].go();
     })
-
     mqttServers.forEach((server, index) => {
       console.log("mqqt servers ", mqttObj[index].id, index);
     })
@@ -87,14 +87,18 @@ async function startServer() {
   }
 }
 startServer()
-
-app.post('/api/refresh/:id', async (req, res) => {
+app.get('/api/refresh/:id', async (req, res) => {
   const channel = req.params.id
+  console.log(channel, "zone_id")
   const map = await Map.findOne({ zone: channel })
-  const area = await Area.find({ map: map._id })
-  areas[channel] = area
+  if (map) {
+    const area = await Area.find({ map: map._id })
+    areas[channel] = area
+  } else {
+    areas[channel] = []
+  }
+  res.json({ status: "ok" });
 });
-
 async function getAllTagData() {
   // Query to retrieve data from the `manuf_data` measurement based on tag values
   const query = `

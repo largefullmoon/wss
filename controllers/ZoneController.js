@@ -30,10 +30,10 @@ router.get('/mqtt/:id', async (req, res) => {
 router.get('/mqtt/start/:id', async (req, res) => {
   try {
     const id = req.params.id
-    console.log("req id ", id)
     var result = mqttObj.find(obj =>
       obj.id === id
     )
+    console.log(result, "result")
     if (result) {
       return res.status(200).json({ status: "running" });
     }
@@ -42,7 +42,6 @@ router.get('/mqtt/start/:id', async (req, res) => {
     if (!mqttSrv) {
       return res.status(404).json({ status: 'not found' });
     }
-    console.log("getting handler")
     mqttObj.push(mqttSrv._id.toString());
     mqttObj[mqttObj.length - 1] = new mqttHandler(mqttSrv.mqtt_server,
       mqttSrv.mqtt_username,
@@ -53,7 +52,6 @@ router.get('/mqtt/start/:id', async (req, res) => {
       mqttSrv.zone.toString(),
       mqttSrv._id.toString(),
     );
-    console.log("before running")
     mqttObj[mqttObj.length - 1].go()
     res.json({ status: "ok" });
   } catch (error) {
@@ -61,7 +59,8 @@ router.get('/mqtt/start/:id', async (req, res) => {
   }
 });
 // Stop mqttInstance
-router.post('/mqtt/stop/:id', async (req, res) => {
+router.get('/mqtt/stop/:id', async (req, res) => {
+  console.log("-----------------------------------")
   try {
     const id = req.params.id;
     const mqttInstance = mqttObj.find(obj => obj.id === id);
@@ -77,7 +76,7 @@ router.post('/mqtt/stop/:id', async (req, res) => {
 });
 
 // Delete an MQTT server
-router.post('/removemqtt/:id', async (req, res) => {
+router.get('/removemqtt/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const deletedMqttServer = await mqttServer.findByIdAndDelete(id);

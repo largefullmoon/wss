@@ -55,24 +55,11 @@ class MqttHandler {
       this.mqttClient.subscribe(this.manuf_topic);
       this.mqttClient.subscribe(this.position_topic);
     });
-    // this.mqttClient.on('close', () => {
-    //   if (this.mqttClient) {
-    //     this.mqttClient.end(true, () => {
-    //       console.log('MQTT client disconnected successfully.');
-    //     });
-    //   }
-    //   if (wscon) {
-    //     wscon.close(1000, 'Normal closure');
-    //     console.log('WebSocket connection closed.');
-    //   }
-    //   console.log(`mqtt client disconnected`);
-    // });
     this.mqttClient.on("message", async (topic, message) => {
-      //parsing
       var paramsAngle = MQTTPattern.exec(anglePattern, topic)
       if (paramsAngle) {
         const data = JSON.parse(message.toString());
-        // Write the data to InfluxDB
+        console.log(data, "paramsAngle");
         influx
           .writePoints([
             {
@@ -152,6 +139,7 @@ class MqttHandler {
             }
 
           }
+          console.log(data, "manuf_data");
           influx
             .writePoints([
               {
@@ -205,6 +193,7 @@ class MqttHandler {
               .catch((err) => {
                 console.error(`Error writing data to InfluxDB: ${err}`);
               });
+              console.log(data, "position_data");
           }
         }
 

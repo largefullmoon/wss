@@ -362,6 +362,7 @@ async function checkEvent(event, zone_id, areas, ws) {
 
 }
 async function checkTagStatus() {
+    
     const tags = await TagStatus.find()
     tags.forEach(async (tag) => {
         const zoneDetail = await Zone.findById(tag.zone_id)
@@ -439,13 +440,8 @@ async function checkTagStatus() {
         }
         if (tag.manuf_data) {
             const zone = await Zone.findById(tag.zone_id)
-            const eventType = await EventType.findOne({ company_id: zone.company.toString(), category: "issue" })
-            let middle_standard = 3.7
+            let middle_standard = 3.0
             let low_standard = 2.3
-            if (eventType) {
-                middle_standard = parseFloat(eventType.standard_middle_value)
-                low_standard = parseFloat(eventType.standard_low_value)
-            }
             const category = "issue";
             let type = ""
             if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != "battery_good" && tag.status != 'no data' && tag.status != 'lost') {
