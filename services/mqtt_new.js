@@ -59,7 +59,6 @@ class MqttHandler {
       var paramsAngle = MQTTPattern.exec(anglePattern, topic)
       if (paramsAngle) {
         const data = JSON.parse(message.toString());
-        console.log(data, "paramsAngle");
         influx
           .writePoints([
             {
@@ -80,7 +79,24 @@ class MqttHandler {
           .catch((err) => {
             console.error(`Error writing data to InfluxDB: ${err}`);
           });
-
+        //Find Tagstatus
+        const tag = await TagStatus.findOne({ tag_id: paramsAngle.tag_id, zone_id: this.zone_id });
+        if (tag) {
+          // Tagstatus exists, update it
+          tag.aoa = data
+          await tag.save();
+        } else {
+          // Tagstatus does not exist, create a new one
+          const newTag = new TagStatus({
+            tag_id: paramsManuf.tag_id,
+            aoa: data,
+            zone_id: this.zone_id,
+            time: new Date(),
+            status: status,
+            is_new: true
+          });
+          await newTag.save();
+        }
       } else {
         var paramsManuf = MQTTPattern.exec(manufPattern, topic)
         if (paramsManuf) {
@@ -169,6 +185,7 @@ class MqttHandler {
             let wsmessage = {
               ...data,
               tag_id: paramsPosition.tag_id,
+              'location': paramsPosition.location,
               "type": "position_data"
             }
             wscon.send(JSON.stringify(wsmessage).toString());
@@ -193,7 +210,24 @@ class MqttHandler {
               .catch((err) => {
                 console.error(`Error writing data to InfluxDB: ${err}`);
               });
-              console.log(data, "position_data");
+            //Find Tagstatus
+            const tag = await TagStatus.findOne({ tag_id: paramsPosition.tag_id, zone_id: this.zone_id });
+            if (tag) {
+              // Tagstatus exists, update it
+              tag.position = data
+              await tag.save();
+            } else {
+              // Tagstatus does not exist, create a new one
+              const newTag = new TagStatus({
+                tag_id: paramsManuf.tag_id,
+                position: data,
+                zone_id: this.zone_id,
+                time: new Date(),
+                status: status,
+                is_new: true
+              });
+              await newTag.save();
+            }
           }
         }
 
