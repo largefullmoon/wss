@@ -88,11 +88,10 @@ class MqttHandler {
         } else {
           // Tagstatus does not exist, create a new one
           const newTag = new TagStatus({
-            tag_id: paramsManuf.tag_id,
+            tag_id: paramsAngle.tag_id,
             aoa: data,
             zone_id: this.zone_id,
             time: new Date(),
-            status: status,
             is_new: true
           });
           await newTag.save();
@@ -219,11 +218,10 @@ class MqttHandler {
             } else {
               // Tagstatus does not exist, create a new one
               const newTag = new TagStatus({
-                tag_id: paramsManuf.tag_id,
+                tag_id: paramsPosition.tag_id,
                 position: data,
                 zone_id: this.zone_id,
                 time: new Date(),
-                status: status,
                 is_new: true
               });
               await newTag.save();
