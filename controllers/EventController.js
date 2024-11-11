@@ -50,7 +50,7 @@ wss.on('connection', (ws, req) => {
     });
     clients.push(ws)
 });
-const runWebHook = async (webHook, data, type) => {
+const runWebHook = async (webHook, data) => {
     if (webHook.type == "email") {
         const text = data.message
         const mailOptions = {
@@ -121,20 +121,6 @@ const runWebHook = async (webHook, data, type) => {
     }
 }
 const broadcastToClients = async (data, type, category) => {
-    const zone = await Zone.findOne(data['zone_id']);
-    const actions = await Action.find({ company_id: zone.company.toString() }).populate('eventType').populate('webHook');
-    actions.forEach(async (action) => {
-        if (action.eventType.category == category && action.eventType.condition.indexOf(type) >= 0) {
-            if (action.status == 1 && action.webHook && action.targetType) {
-                if (action.executionType == "once" && action.count >= 1) {
-                } else {
-                    await runWebHook(action.webHook, data, type);
-                    action.count = action.count + 1;
-                    await action.save();
-                }
-            }
-        }
-    });
     clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(data));
@@ -142,6 +128,9 @@ const broadcastToClients = async (data, type, category) => {
     });
 }
 const redis = require('redis');
+const { CategoryCondition } = require('../models/CategoryCondition.js');
+const { Category } = require('../models/Category.js');
+const { Condition } = require('../models/Condition.js');
 // Create a Redis client
 const client = redis.createClient({
     host: '127.0.0.1',  // Redis server host (use localhost for local server)
@@ -244,27 +233,15 @@ async function checkEvent(event, zone_id, areas, ws) {
                         'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
                     broadcastToClients(data, "tag_entered_area", "location")
-                    // const query = `
-                    //     CREATE TABLE IF NOT EXISTS event (
-                    //         id UUID DEFAULT generateUUIDv4(),
-                    //         type String,
-                    //         object String,
-                    //         zone String,
-                    //         area String,
-                    //         information String,
-                    //         timestamp DateTime
-                    //     )
-                    //     ENGINE = MergeTree
-                    //     PRIMARY KEY (id, timestamp)
-                    //     `;
-
-                    // // Execute the query
-                    // await clickhouse.query(query).toPromise();
-                    // const insertQuery = `
-                    //     INSERT INTO event (type, object, zone, area, information)
-                    //     VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-                    // `;
-                    // await clickhouse.query(insertQuery).toPromise();
+                    const tag = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
+                    const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
+                    actions.forEach(action => {
+                        if (action.locationcondition_id) {
+                            if (action.locationcondition_id.name == 'tag_entered_area') {
+                                runAction(action, [data])
+                            }
+                        }
+                    });
                 }
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
@@ -292,79 +269,139 @@ async function checkEvent(event, zone_id, areas, ws) {
                         'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
                     broadcastToClients(data, "tag_exited_area", "location")
-                    // const query = `
-                    //     CREATE TABLE IF NOT EXISTS event (
-                    //         id UUID DEFAULT generateUUIDv4(),
-                    //         type String,
-                    //         object String,
-                    //         zone String,
-                    //         area String,
-                    //         information String,
-                    //         timestamp DateTime
-                    //     )
-                    //     ENGINE = MergeTree
-                    //     PRIMARY KEY (id, timestamp)
-                    //     `;
-
-                    // // Execute the query
-                    // await clickhouse.query(query).toPromise();
-                    // const insertQuery = `
-                    //     INSERT INTO event (type, object, zone, area, information)
-                    //     VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-                    // `;
-                    // await clickhouse.query(insertQuery).toPromise();
+                    const tag = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
+                    const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
+                    actions.forEach(action => {
+                        if (action.locationcondition_id) {
+                            if (action.locationcondition_id.name == 'tag_exited_area') {
+                                runAction(action, [data])
+                            }
+                        }
+                    });
                 }
             }
         }
     }
-    // if (!tagIds.includes(tagInfo.tag_id)) {
-    //     const type = "tag_detected"
-    //     const object = tagInfo.tag_id
-    //     const zone = zone_id
-    //     const data = {
-    //         'tag_id': tagInfo.tag_id,
-    //         'zone_id': zone_id,
-    //         'message': `New Tag (${tagInfo.tag_id}) is detected on Zone (${zone_id})`,
-    //     }
-    //     broadcastToClients(data)
-    //     const information = "New tag is detected on Zone"
-    //     const category = 'info'
-    //     const newEvent = new Event({
-    //         category,
-    //         type,
-    //         object,
-    //         zone,
-    //         information
-    //     });
-    //     await newEvent.save();
-    //     // const query = `
-    //     //             CREATE TABLE IF NOT EXISTS event (
-    //     //                 id UUID DEFAULT generateUUIDv4(),
-    //     //                 type String,
-    //     //                 object String,
-    //     //                 zone String,
-    //     //                 area String,
-    //     //                 information String,
-    //     //                 timestamp DateTime
-    //     //             )
-    //     //             ENGINE = MergeTree
-    //     //             PRIMARY KEY (id, timestamp)
-    //     //             `;
-    //     // // Execute the query
-    //     // await clickhouse.query(query).toPromise();
-    //     // const insertQuery = `
-    //     //             INSERT INTO event (type, object, zone, area, information)
-    //     //             VALUES ('${type}', '${object}', '${zone}', '${area}', '${information}')
-    //     //         `;
-    //     // await clickhouse.query(insertQuery).toPromise();
-    //     tagIds = await getTagsLastLocation(zone_id);
-    // }
-
+}
+const checkCustomCondition = async (tag, condition, category) => {
+    if (condition.type == "custom") {
+        if (tag.includes(category)) {
+            let compareString = ""
+            condition.conditions.forEach(param => {
+                let logic_ope = ""
+                if (param.logic_operator == "And") {
+                    logic_ope = "&&"
+                }
+                if (param.logic_operator == "Or") {
+                    logic_ope = "||"
+                }
+                compareString += logic_ope + tag[category][param.param] + param.operator + param.standard_value
+            })
+            if (eval(compareString) && compareString != "") {
+                return compareString
+            } else {
+                return false
+            }
+        }
+        return false
+    } else {
+        return false
+    }
+}
+const checkActionWithConditions = async (action, conditions) => {
+    let isLocationCondition = false
+    let localtionCondition = ''
+    const eventType = await EventType.findById(action.eventType).populate('param.category_id')
+    const compareString = "true&&"
+    eventType.params.forEach((param, index) => {
+        if (index != 0) {
+            if (param.operator == "And") {
+                ope = "&&"
+            }
+            if (param.operator == "Or") {
+                ope = "||"
+            }
+            compareString += ope
+        }
+        let flag = false
+        if (param.category_id.name == "location") {
+            isLocationCondition = true
+            localtionCondition = param.condition_id
+        } else {
+            conditions.forEach(element => {
+                if (element.category == param.category_id.name && element.condition == param.condition_id) {
+                    if (flag == false) {
+                        compareString += true
+                    }
+                }
+            });
+        }
+        if (flag == false) {
+            compareString += false
+        }
+    });
+    if (isLocationCondition && eval(compareString) && compareString != "") {
+        await Action.findOneAndUpdate(action._id, { locationcondition_id: localtionCondition })
+    }
+    if (eval(compareString) && compareString != "") {
+        return true
+    } else {
+        return false
+    }
+}
+/**
+ * Runs an action by sending a webhook to the specified webhook_id and using the supplied webHookData
+ * @param {Object} action - The action to run
+ * @param {Array} webHookData - The data to be sent with the webhook. Each element of the array should be an object with the following properties: tag_id, zone_id, message
+ * @returns {Promise} - A promise that resolves when the webhook has been sent
+ */
+const runAction = async (action, webHookData) => {
+    const webhook = await WebHookModel.findById(action.webhook_id)
+    let messages = ""
+    webHookData.forEach((data) => {
+        messages += data.message + "\n"
+    })
+    const data = {
+        'tag_id': webHookData[0].tag_id,
+        'zone_id': webHookData[0].zone_id,
+        'message': messages
+    }
+    await runWebHook(webhook, data)
 }
 async function checkTagStatus() {
-    
-    const tags = await TagStatus.find()
+    try {
+        console.log(Category, "Category")
+        console.log(Condition, "Condition")
+        const category_conditions = await CategoryCondition.find({ type: "custom" }).populate('condition_id').populate('category_id')
+        console.log("category_conditions", category_conditions)
+        const tags = await TagStatus.find()
+        console.log("tags", tags)
+    } catch (error) {
+        console.log(error)
+    }
     tags.forEach(async (tag) => {
+        const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
+        let fitConditions = []
+        let webHookData = []
+        category_conditions.forEach(async (item) => {
+            const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
+            if (flag) {
+                const newEvent = new Event({
+                    category: item.category_id.name,
+                    type: item.condition_id.name,
+                    object: tag.tag_id,
+                    zone: tag.zone_id,
+                });
+                await newEvent.save();
+                const data = {
+                    'tag_id': tag.tag_id,
+                    'zone_id': tag.zone_id,
+                    'message': flag
+                }
+                webHookData.push(data)
+                fitConditions.push({ condition: item.condition_id, category: item.category_id.name })
+            }
+        })
         const zoneDetail = await Zone.findById(tag.zone_id)
         const currentTime = new Date();
         const tagTime = new Date(tag.time);
@@ -391,6 +428,9 @@ async function checkTagStatus() {
                 information
             });
             await newEvent.save();
+            const condition_id = await Condition.findOne({ name: "tag_nodata", type: "system" })
+            webHookData.push(data)
+            fitConditions.push({ condition: condition_id, category: "info" })
         }
         if (timeDifference > 120 * 60 * 1000 && tag.status != 'lost') {
             const category = "info";
@@ -414,6 +454,9 @@ async function checkTagStatus() {
                 information
             });
             await newEvent.save();
+            const condition_id = await Condition.findOne({ name: "tag_lost", type: "system" })
+            webHookData.push(data)
+            fitConditions.push({ condition: condition_id, category: "info" })
         }
         if (tag.is_new == true) {
             const category = "info";
@@ -437,6 +480,9 @@ async function checkTagStatus() {
                 information
             });
             await newEvent.save();
+            const condition_id = await Condition.findOne({ name: "tag_detected", type: "system" })
+            webHookData.push(data)
+            fitConditions.push({ condition: condition_id, category: "info" })
         }
         if (tag.manuf_data) {
             const zone = await Zone.findById(tag.zone_id)
@@ -476,14 +522,24 @@ async function checkTagStatus() {
                     information
                 });
                 await newEvent.save();
+                const condition_id = await Condition.findOne({ name: type, type: "system" })
+                webHookData.push(data)
+                fitConditions.push({ condition: condition_id, category: "issue" })
             }
         }
+        console.log("fitConditions", fitConditions);
+        await actions.forEach(async (action) => {
+            const result = await checkActionWithConditions(action, fitConditions)
+            if (result) {
+                await runAction(action, webHookData)
+            }
+        });
     })
 
 }
 setInterval(() => {
     checkTagStatus()
-}, 5 * 60 * 1000);
+}, 60 * 1000);
 module.exports = {
     checkEvent
 };
