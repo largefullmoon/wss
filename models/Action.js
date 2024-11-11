@@ -18,6 +18,10 @@ const actionSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        locationcondition_id: {
+            type: mongoose.Schema.Types.ObjectId, ref: "Condition",
+            default: null,
+        },
         asset_id: {
             type: mongoose.Schema.Types.ObjectId, ref: "Asset",
             default: null,

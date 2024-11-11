@@ -14,6 +14,14 @@ const tagSchema = new mongoose.Schema(
             type: Object,
             default: null,
         },
+        aoa: {
+            type: Object,
+            default: null,
+        },
+        position: {
+            type: Object,
+            default: null,
+        },
         status: {
             type: String,
             default: null,
