@@ -352,6 +352,7 @@ const checkActionWithConditions = async (action, conditions) => {
     console.log(isLocationCondition, "isLocationCondition")
     if (isLocationCondition && eval(compareString) && compareString != "") {
         await Action.findOneAndUpdate(action._id, { locationcondition_id: localtionCondition })
+        return false
     }
     if (eval(compareString) && compareString != "" && isLocationCondition == false) {
         return true
@@ -543,9 +544,9 @@ async function checkTagStatus() {
     })
 
 }
-// setInterval(() => {
-checkTagStatus()
-// }, 5 * 60 * 1000);
+setInterval(() => {
+    checkTagStatus()
+}, 5 * 60 * 1000);
 module.exports = {
     checkEvent
 };
