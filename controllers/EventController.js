@@ -285,17 +285,19 @@ async function checkEvent(event, zone_id, areas, ws) {
 }
 const checkCustomCondition = async (tag, condition, category) => {
     if (condition.type == "custom") {
-        if (tag.includes(category)) {
+        if (tag[condition.category]) {
             let compareString = ""
-            condition.conditions.forEach(param => {
+            condition.conditions.forEach((param, index) => {
                 let logic_ope = ""
-                if (param.logic_operator == "And") {
-                    logic_ope = "&&"
+                if (index != 0) {
+                    if (param.logic_operator == "And") {
+                        logic_ope = "&&"
+                    }
+                    if (param.logic_operator == "Or") {
+                        logic_ope = "||"
+                    }
                 }
-                if (param.logic_operator == "Or") {
-                    logic_ope = "||"
-                }
-                compareString += logic_ope + tag[category][param.param] + param.operator + param.standard_value
+                compareString += logic_ope + tag[condition.category][param.param] + param.operator + param.standard_value
             })
             if (eval(compareString) && compareString != "") {
                 return compareString
@@ -311,39 +313,47 @@ const checkCustomCondition = async (tag, condition, category) => {
 const checkActionWithConditions = async (action, conditions) => {
     let isLocationCondition = false
     let localtionCondition = ''
-    const eventType = await EventType.findById(action.eventType).populate('param.category_id')
-    const compareString = "true&&"
+    const eventType = await EventType.findById(action.eventType).populate('params.category_id')
+    let compareString = "true&&"
+    let number = 0
     eventType.params.forEach((param, index) => {
-        if (index != 0) {
-            if (param.operator == "And") {
-                ope = "&&"
-            }
-            if (param.operator == "Or") {
-                ope = "||"
-            }
-            compareString += ope
-        }
         let flag = false
         if (param.category_id.name == "location") {
             isLocationCondition = true
             localtionCondition = param.condition_id
+            flag = true
         } else {
+            number++
+            if (number != 1) {
+                if (param.operator == "And") {
+                    ope = "&&"
+                }
+                if (param.operator == "Or") {
+                    ope = "||"
+                }
+                compareString += ope
+            }
             conditions.forEach(element => {
-                if (element.category == param.category_id.name && element.condition == param.condition_id) {
+                if (element.category == param.category_id.name && element.condition._id.toString() == param.condition_id.toString()) {
+                    console.log("--------------+++++++++++++---------------")
                     if (flag == false) {
-                        compareString += true
+                        flag = true
+                        compareString += 'true'
                     }
                 }
             });
         }
         if (flag == false) {
-            compareString += false
+            compareString += 'false'
         }
+        console.log("++++++++++++++++++++++++++++++++++++++++")
+        console.log(compareString, "compareString")
     });
+    console.log(isLocationCondition, "isLocationCondition")
     if (isLocationCondition && eval(compareString) && compareString != "") {
         await Action.findOneAndUpdate(action._id, { locationcondition_id: localtionCondition })
     }
-    if (eval(compareString) && compareString != "") {
+    if (eval(compareString) && compareString != "" && isLocationCondition == false) {
         return true
     } else {
         return false
@@ -356,7 +366,8 @@ const checkActionWithConditions = async (action, conditions) => {
  * @returns {Promise} - A promise that resolves when the webhook has been sent
  */
 const runAction = async (action, webHookData) => {
-    const webhook = await WebHookModel.findById(action.webhook_id)
+    console.log(action, "action")
+    const webhook = await WebHookModel.findById(action.webHook)
     let messages = ""
     webHookData.forEach((data) => {
         messages += data.message + "\n"
@@ -366,19 +377,15 @@ const runAction = async (action, webHookData) => {
         'zone_id': webHookData[0].zone_id,
         'message': messages
     }
+    console.log(webhook, "webhook")
+    console.log(data, "data")
     await runWebHook(webhook, data)
 }
 async function checkTagStatus() {
-    try {
-        console.log(Category, "Category")
-        console.log(Condition, "Condition")
-        const category_conditions = await CategoryCondition.find({ type: "custom" }).populate('condition_id').populate('category_id')
-        console.log("category_conditions", category_conditions)
-        const tags = await TagStatus.find()
-        console.log("tags", tags)
-    } catch (error) {
-        console.log(error)
-    }
+    console.log(Category, "Category")
+    console.log(Condition, "Condition")
+    const category_conditions = await CategoryCondition.find({ type: "custom" }).populate('condition_id').populate('category_id')
+    const tags = await TagStatus.find()
     tags.forEach(async (tag) => {
         const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
         let fitConditions = []
@@ -527,7 +534,6 @@ async function checkTagStatus() {
                 fitConditions.push({ condition: condition_id, category: "issue" })
             }
         }
-        console.log("fitConditions", fitConditions);
         await actions.forEach(async (action) => {
             const result = await checkActionWithConditions(action, fitConditions)
             if (result) {
@@ -537,9 +543,9 @@ async function checkTagStatus() {
     })
 
 }
-setInterval(() => {
-    checkTagStatus()
-}, 5 * 60 * 1000);
+// setInterval(() => {
+checkTagStatus()
+// }, 5 * 60 * 1000);
 module.exports = {
     checkEvent
 };
