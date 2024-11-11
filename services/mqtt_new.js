@@ -154,7 +154,6 @@ class MqttHandler {
             }
 
           }
-          console.log(data, "manuf_data");
           influx
             .writePoints([
               {
