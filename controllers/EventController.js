@@ -498,17 +498,30 @@ async function checkTagStatus() {
             let low_standard = 2.3
             const category = "issue";
             let type = ""
+            let battery_status = ""
             if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != "battery_good" && tag.status != 'no data' && tag.status != 'lost') {
                 content = `battery(${tag.manuf_data.vbatt}) is good`
                 type = "battery_good"
+                if (tag.status == 'battery_low' || tag.status == 'battery_middle') {
+                    battery_status = 'resolved'
+                }
             }
             if (tag.manuf_data.vbatt >= low_standard && tag.battery_status != "battery_middle" && tag.status != 'no data' && tag.status != 'lost') {
+                if (tag.status == 'battery_low') {
+                    battery_status = 'resolved'
+                }
+                if (tag.status == 'battery_good') {
+                    battery_status = 'ongoing'
+                }
                 content = `battery(${tag.manuf_data.vbatt}) is middle`
                 type = "battery_middle"
             }
             if (tag.manuf_data.vbatt < low_standard && tag.battery_status != "battery_low" && tag.status != 'no data' && tag.status != 'lost') {
                 content = `battery(${tag.manuf_data.vbatt}) is low`
                 type = "battery_low"
+                if (tag.status == 'battery_middle' || tag.status == 'battery_good') {
+                    battery_status = 'ongoing'
+                }
             }
             if (type != "") {
                 const data = {
@@ -522,14 +535,26 @@ async function checkTagStatus() {
                 broadcastToClients(data, type, "issue")
                 tag.battery_status = type
                 await tag.save();
-                const newEvent = new Event({
-                    category,
-                    type,
-                    object,
-                    zone,
-                    information
-                });
-                await newEvent.save();
+                if (battery_status != "") {
+                    const newEvent = new Event({
+                        category,
+                        type,
+                        object,
+                        zone,
+                        information,
+                        battery_status
+                    });
+                    await newEvent.save();
+                } else {
+                    const newEvent = new Event({
+                        category,
+                        type,
+                        object,
+                        zone,
+                        information
+                    });
+                    await newEvent.save();
+                }
                 const condition_id = await Condition.findOne({ name: type, type: "system" })
                 webHookData.push(data)
                 fitConditions.push({ condition: condition_id, category: "issue" })

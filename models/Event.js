@@ -21,6 +21,10 @@ const eventSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId, ref: "Area",
             default: null,
         },
+        battery_status: {
+            type: String,
+            default: null,
+        },
         information: {
             type: String,
             default: null,
