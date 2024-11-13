@@ -614,9 +614,9 @@ async function checkTagStatus() {
     })
 
 }
-// setInterval(() => {
-checkTagStatus()
-// }, 60 * 1000);
+setInterval(() => {
+    checkTagStatus()
+}, 60 * 1000);
 module.exports = {
     checkEvent
 };
