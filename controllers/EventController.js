@@ -300,7 +300,7 @@ const checkCustomCondition = async (tag, condition, category) => {
                 compareString += logic_ope + tag[condition.category][param.param] + param.operator + param.standard_value
             })
             if (eval(compareString) && compareString != "") {
-                return compareString
+                return true
             } else {
                 return false
             }
@@ -388,17 +388,35 @@ async function checkTagStatus() {
     const category_conditions = await CategoryCondition.find({ type: "custom" }).populate('condition_id').populate('category_id')
     const tags = await TagStatus.find()
     tags.forEach(async (tag) => {
+        const zone = await Zone.findById(tag.zone_id)
         const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
         let fitConditions = []
         let webHookData = []
         category_conditions.forEach(async (item) => {
             const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
+            const condition = item.condition_id
+            const message = condition.message
+            const preString = "`" + message + "`"
+            const params = [...tag.aoa, ...tag.manuf_data, ...tag.position]
+            let string = ""
+            try {
+                string = new Function(`
+                    const tag={id:'${tag.tag_id}'};
+                    const zone={id:'${tag.zone_id}',name:'${zone.title}',description:'${zone.description}'};
+                    const param=${params};
+                    return ${preString};
+                `)();
+            } catch (error) {
+                console.log("********************************************")
+                console.log(error)
+            }
             if (flag) {
                 const newEvent = new Event({
                     category: item.category_id.name,
                     type: item.condition_id.name,
                     object: tag.tag_id,
                     zone: tag.zone_id,
+                    information: string
                 });
                 await newEvent.save();
                 const data = {
