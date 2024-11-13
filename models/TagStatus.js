@@ -14,6 +14,18 @@ const tagSchema = new mongoose.Schema(
             type: Object,
             default: null,
         },
+        previous_aoa: {
+            type: Object,
+            default: null,
+        },
+        previous_position: {
+            type: Object,
+            default: null,
+        },
+        previous_manuf_data: {
+            type: Object,
+            default: null,
+        },
         aoa: {
             type: Object,
             default: null,

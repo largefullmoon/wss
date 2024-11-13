@@ -396,37 +396,56 @@ async function checkTagStatus() {
             const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
             const condition = item.condition_id
             const message = condition.message
-            const preString = "`" + message + "`"
-            let params = {}
-            if (tag.aoa) {
-                params = { ...params, ...tag.aoa }
-            }
-            if (tag.manuf_data) {
-                params = { ...params, ...tag.manuf_data }
-            }
-            if (tag.position) {
-                params = { ...params, ...tag.position }
-            }
             let string = ""
-            try {
-                string = new Function(`
-                    const tag={id:'${tag?.tag_id}'};
-                    const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
-                    const param = ${JSON.stringify(params)};
-                    return ${preString};
-                `)();
-            } catch (error) {
-                console.log(error)
+            if (message != null && message != "") {
+                const preString = "`" + message + "`"
+                let params = {}
+                if (tag.aoa) {
+                    params = { ...params, ...tag.aoa }
+                }
+                if (tag.manuf_data) {
+                    params = { ...params, ...tag.manuf_data }
+                }
+                if (tag.position) {
+                    params = { ...params, ...tag.position }
+                }
+                try {
+                    string = new Function(`
+                        const tag={id:'${tag?.tag_id}'};
+                        const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
+                        const param = ${JSON.stringify(params)};
+                        return ${preString};
+                    `)();
+                } catch (error) {
+                    console.log(error)
+                }
             }
             if (flag) {
-                const newEvent = new Event({
-                    category: item.category_id.name,
-                    type: item.condition_id.name,
-                    object: tag.tag_id,
-                    zone: tag.zone_id,
-                    information: string
-                });
-                await newEvent.save();
+                let isValid = false
+                if (tag[`previous_${condition.category}`]) {
+                    condition.conditions.forEach((param, index) => {
+                        if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
+                            isValid = true
+                        }
+                    })
+                } else {
+                    isValid = true
+                }
+                if (isValid) {
+                    const newEvent = new Event({
+                        category: item.category_id.name,
+                        type: item.condition_id.name,
+                        object: tag.tag_id,
+                        zone: tag.zone_id,
+                        information: string
+                    });
+                    await newEvent.save();
+                    await TagStatus.findByIdAndUpdate(tag._id, {
+                        previous_aoa: tag.aoa,
+                        previous_manuf_data: tag.manuf_data,
+                        previous_position: tag.position,
+                    }, { new: true })
+                }
                 const data = {
                     'tag_id': tag.tag_id,
                     'zone_id': tag.zone_id,
@@ -595,9 +614,9 @@ async function checkTagStatus() {
     })
 
 }
-setInterval(() => {
-    checkTagStatus()
-}, 60 * 1000);
+// setInterval(() => {
+checkTagStatus()
+// }, 60 * 1000);
 module.exports = {
     checkEvent
 };
