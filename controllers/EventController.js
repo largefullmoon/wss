@@ -397,17 +397,25 @@ async function checkTagStatus() {
             const condition = item.condition_id
             const message = condition.message
             const preString = "`" + message + "`"
-            const params = [...tag.aoa, ...tag.manuf_data, ...tag.position]
+            let params = {}
+            if (tag.aoa) {
+                params = { ...params, ...tag.aoa }
+            }
+            if (tag.manuf_data) {
+                params = { ...params, ...tag.manuf_data }
+            }
+            if (tag.position) {
+                params = { ...params, ...tag.position }
+            }
             let string = ""
             try {
                 string = new Function(`
-                    const tag={id:'${tag.tag_id}'};
-                    const zone={id:'${tag.zone_id}',name:'${zone.title}',description:'${zone.description}'};
-                    const param=${params};
+                    const tag={id:'${tag?.tag_id}'};
+                    const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
+                    const param = ${JSON.stringify(params)};
                     return ${preString};
                 `)();
             } catch (error) {
-                console.log("********************************************")
                 console.log(error)
             }
             if (flag) {
@@ -589,7 +597,7 @@ async function checkTagStatus() {
 }
 setInterval(() => {
     checkTagStatus()
-}, 5 * 60 * 1000);
+}, 60 * 1000);
 module.exports = {
     checkEvent
 };

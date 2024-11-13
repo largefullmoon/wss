@@ -19,6 +19,9 @@ const conditionSchema = new mongoose.Schema(
     type: {
       type: String,
     },
+    message: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
