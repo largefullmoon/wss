@@ -38,6 +38,10 @@ const tagSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        runConditions: {
+            type: Object,
+            default: [],
+        },
         time: {
             type: Date,
             default: null,

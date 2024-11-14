@@ -420,28 +420,30 @@ async function checkTagStatus() {
                     console.log(error)
                 }
             }
-            if (!flag && tag.runConditions.includes(condition._id) && condition.category == 'issue') {
-                let isCheck = false
-                if (tag[`${condition.category}`] && tag[`previous_${condition.category}`]) {
-                    condition.conditions.forEach((param, index) => {
-                        if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
-                            isCheck = true
-                        }
-                    })
-                }
-                if (isCheck) {
-                    const newEvent = new Event({
-                        category: item.category_id.name,
-                        type: item.condition_id.name,
-                        object: tag.tag_id,
-                        zone: tag.zone_id,
-                        information: string,
-                        battery_status: "resolved"
-                    });
-                    await newEvent.save();
-                    await TagStatus.findByIdAndUpdate(tag._id, {
-                        runConditions: tag.runConditions.filter((item) => item != condition._id),
-                    }, { new: true })
+            if (tag.runConditions) {
+                if (!flag && tag.runConditions.includes(condition._id) && condition.category == 'issue') {
+                    let isCheck = false
+                    if (tag[`${condition.category}`] && tag[`previous_${condition.category}`]) {
+                        condition.conditions.forEach((param, index) => {
+                            if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
+                                isCheck = true
+                            }
+                        })
+                    }
+                    if (isCheck) {
+                        const newEvent = new Event({
+                            category: item.category_id.name,
+                            type: item.condition_id.name,
+                            object: tag.tag_id,
+                            zone: tag.zone_id,
+                            information: string,
+                            battery_status: "resolved"
+                        });
+                        await newEvent.save();
+                        await TagStatus.findByIdAndUpdate(tag._id, {
+                            runConditions: tag.runConditions.filter((item) => item != condition._id),
+                        }, { new: true })
+                    }
                 }
             }
             if (flag) {
@@ -462,7 +464,7 @@ async function checkTagStatus() {
                         previous_position: tag.position,
                     }, { new: true })
                     if (condition.category == 'issue') {
-                        if (tag.runConditions.includes(condition._id)) {
+                        if (tag.runConditions && tag.runConditions.includes(condition._id)) {
                         } else {
                             await TagStatus.findByIdAndUpdate(tag._id, {
                                 runConditions: [...tag.runConditions, condition._id],
@@ -656,9 +658,9 @@ async function checkTagStatus() {
     })
 
 }
-setInterval(() => {
-    checkTagStatus()
-}, 5 * 60 * 1000);
+// setInterval(() => {
+checkTagStatus()
+// }, 5 * 60 * 1000);
 module.exports = {
     checkEvent
 };
