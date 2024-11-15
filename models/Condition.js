@@ -30,6 +30,10 @@ const conditionSchema = new mongoose.Schema(
     },
     severity: {
       type: String,
+    },
+    selectedZones: {
+      type: Array,
+      default: []
     }
   },
   { timestamps: true }
