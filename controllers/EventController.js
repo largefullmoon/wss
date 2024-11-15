@@ -408,6 +408,7 @@ async function checkTag(tag, type, period) {
     category_conditions.forEach(async (item) => {
         if (checkingTagConditions.includes(tag.tag_id + "_" + item.condition_id)) return
         const condition = item.condition_id
+        const category = item.category_id.name
         if (!condition.selectedZones.includes(tag.zone_id.toString())) return
         checkingTagConditions = [...checkingTagConditions, tag.tag_id + "_" + item.condition_id]
         const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
@@ -451,7 +452,7 @@ async function checkTag(tag, type, period) {
                     const runConditions = tag.runConditions.map((item) => {
                         return item.toString()
                     })
-                    if (!flag && runConditions.includes(condition._id.toString()) && condition.category == 'issue') {
+                    if (!flag && runConditions.includes(condition._id.toString()) && category == 'issue') {
                         let isCheck = false
                         if (tag[`${condition.category}`] && tag[`previous_${condition.category}`]) {
                             condition.conditions.forEach((param, index) => {
@@ -523,7 +524,7 @@ async function checkTag(tag, type, period) {
                         if (condition.severity == "critical") {
                             color = 'dark red'
                         }
-                        if (condition.category == 'issue') {
+                        if (category == 'issue') {
                             const newEvent = new Event({
                                 category: item.category_id.name,
                                 type: item.condition_id.name,
