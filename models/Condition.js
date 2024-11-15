@@ -22,6 +22,12 @@ const conditionSchema = new mongoose.Schema(
     message: {
       type: String,
     },
+    checkingType: {
+      type: String,
+    },
+    checkingPeriod: {
+      type: String,
+    }
   },
   { timestamps: true }
 );

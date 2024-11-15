@@ -59,6 +59,12 @@ class MqttHandler {
       var paramsAngle = MQTTPattern.exec(anglePattern, topic)
       if (paramsAngle) {
         const data = JSON.parse(message.toString());
+        let wsmessage = {
+          ...data,
+          tag_id: paramsAngle.tag_id,
+          "type": "aoa_data"
+        }
+        wscon.send(JSON.stringify(wsmessage).toString());
         influx
           .writePoints([
             {

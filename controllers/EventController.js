@@ -204,7 +204,6 @@ async function checkEvent(event, zone_id, areas, ws) {
         areas = await Area.find({ map: map._id })
     }
     if (tagInfo.type == "position_data") {
-
         for (let i = 0; i < areas.length; i++) {
             const currentStatus = await getDeviceInfo(tagInfo.tag_id);
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
@@ -281,6 +280,10 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             }
         }
+    }
+    const tagStatus = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
+    if (tagStatus) {
+        await checkTag(tagStatus, "real-time", null)
     }
 }
 const checkCustomCondition = async (tag, condition, category) => {
@@ -382,285 +385,319 @@ const runAction = async (action, webHookData) => {
     console.log(data, "data")
     await runWebHook(webhook, data)
 }
-async function checkTagStatus() {
+async function checkTag(tag, type, period) {
     console.log(Category, "Category")
     console.log(Condition, "Condition")
     const category_conditions = await CategoryCondition.find({ type: "custom" }).populate('condition_id').populate('category_id')
-    const tags = await TagStatus.find()
-    tags.forEach(async (tag) => {
-        const zone = await Zone.findById(tag.zone_id)
-        const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
-        let fitConditions = []
-        let webHookData = []
-        category_conditions.forEach(async (item) => {
-            const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
-            const condition = item.condition_id
-            const message = condition.message
-            let string = ""
-            if (message != null && message != "") {
-                const preString = "`" + message + "`"
-                let params = {}
-                if (tag.aoa) {
-                    params = { ...params, ...tag.aoa }
-                }
-                if (tag.manuf_data) {
-                    params = { ...params, ...tag.manuf_data }
-                }
-                if (tag.position) {
-                    params = { ...params, ...tag.position }
-                }
-                try {
-                    string = new Function(`
-                        const tag={id:'${tag?.tag_id}'};
-                        const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
-                        const param = ${JSON.stringify(params)};
-                        return ${preString};
-                    `)();
-                } catch (error) {
-                    console.log(error)
-                }
+    const zone = await Zone.findById(tag.zone_id)
+    const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
+    let fitConditions = []
+    let webHookData = []
+    console.log(category_conditions, "category_conditions")
+    category_conditions.forEach(async (item) => {
+        const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
+        const condition = item.condition_id
+        if (condition.checkingType == type) {
+            let isTrue = true
+            if (condition.checkingType == "every-minute" && (period % checkingPeriod) == 0) {
+                isTrue = true
+            } else {
+                isTrue = false
             }
-            if (tag.runConditions) {
-                if (!flag && tag.runConditions.includes(condition._id) && condition.category == 'issue') {
-                    let isCheck = false
-                    if (tag[`${condition.category}`] && tag[`previous_${condition.category}`]) {
+            if (condition.checkingType == "real-time") {
+                isTrue = true
+            }
+            if (isTrue) {
+                const message = condition.message
+                let string = ""
+                if (message != null && message != "") {
+                    const preString = "`" + message + "`"
+                    let params = {}
+                    if (tag.aoa) {
+                        params = { ...params, ...tag.aoa }
+                    }
+                    if (tag.manuf_data) {
+                        params = { ...params, ...tag.manuf_data }
+                    }
+                    if (tag.position) {
+                        params = { ...params, ...tag.position }
+                    }
+                    try {
+                        string = new Function(`
+                            const tag={id:'${tag?.tag_id}'};
+                            const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
+                            const param = ${JSON.stringify(params)};
+                            return ${preString};
+                        `)();
+                    } catch (error) {
+                        console.log(error)
+                    }
+                }
+                if (tag.runConditions) {
+                    const runConditions = tag.runConditions.map((item) => {
+                        return item.toString()
+                    })
+                    if (!flag && runConditions.includes(condition._id.toString()) && condition.category == 'issue') {
+                        let isCheck = false
+                        if (tag[`${condition.category}`] && tag[`previous_${condition.category}`]) {
+                            condition.conditions.forEach((param, index) => {
+                                if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
+                                    isCheck = true
+                                }
+                            })
+                        }
+                        if (isCheck) {
+                            const newEvent = new Event({
+                                category: item.category_id.name,
+                                type: item.condition_id.name,
+                                object: tag.tag_id,
+                                zone: tag.zone_id,
+                                information: string,
+                                battery_status: "resolved"
+                            });
+                            await newEvent.save();
+                            await TagStatus.findByIdAndUpdate(tag._id, {
+                                runConditions: tag.runConditions.filter((item) => item.toString() != condition._id.toString),
+                            }, { new: true })
+                        }
+                    }
+                }
+                console.log(flag, "flag")
+                if (flag) {
+                    const runConditions = tag.runConditions.map((item) => {
+                        return item.toString()
+                    })
+                    let isValid = false
+                    if (tag[`previous_${condition.category}`]) {
                         condition.conditions.forEach((param, index) => {
                             if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
-                                isCheck = true
+                                isValid = true
                             }
                         })
+                    } else {
+                        isValid = true
                     }
-                    if (isCheck) {
-                        const newEvent = new Event({
-                            category: item.category_id.name,
-                            type: item.condition_id.name,
-                            object: tag.tag_id,
-                            zone: tag.zone_id,
-                            information: string,
-                            battery_status: "resolved"
-                        });
-                        await newEvent.save();
+                    console.log(runConditions)
+                    console.log(condition._id.toString())
+                    if (!runConditions.includes(condition._id.toString())) {
+                        isValid = true
+                    }
+                    console.log(isValid, "isValid")
+                    if (isValid) {
                         await TagStatus.findByIdAndUpdate(tag._id, {
-                            runConditions: tag.runConditions.filter((item) => item != condition._id),
+                            previous_aoa: tag.aoa,
+                            previous_manuf_data: tag.manuf_data,
+                            previous_position: tag.position,
                         }, { new: true })
-                    }
-                }
-            }
-            if (flag) {
-                let isValid = false
-                if (tag[`previous_${condition.category}`]) {
-                    condition.conditions.forEach((param, index) => {
-                        if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
-                            isValid = true
-                        }
-                    })
-                } else {
-                    isValid = true
-                }
-                if (isValid) {
-                    await TagStatus.findByIdAndUpdate(tag._id, {
-                        previous_aoa: tag.aoa,
-                        previous_manuf_data: tag.manuf_data,
-                        previous_position: tag.position,
-                    }, { new: true })
-                    if (condition.category == 'issue') {
-                        if (tag.runConditions && tag.runConditions.includes(condition._id)) {
+                        if (runConditions && runConditions.includes(condition._id.toString())) {
                         } else {
                             await TagStatus.findByIdAndUpdate(tag._id, {
                                 runConditions: [...tag.runConditions, condition._id],
                             }, { new: true })
                         }
-                        const newEvent = new Event({
-                            category: item.category_id.name,
-                            type: item.condition_id.name,
-                            object: tag.tag_id,
-                            zone: tag.zone_id,
-                            information: string,
-                            battery_status: "ongoing"
-                        });
-                        await newEvent.save();
-                    } else {
-                        const newEvent = new Event({
-                            category: item.category_id.name,
-                            type: item.condition_id.name,
-                            object: tag.tag_id,
-                            zone: tag.zone_id,
-                            information: string,
-                        });
-                        await newEvent.save();
+                        if (condition.category == 'issue') {
+                            const newEvent = new Event({
+                                category: item.category_id.name,
+                                type: item.condition_id.name,
+                                object: tag.tag_id,
+                                zone: tag.zone_id,
+                                information: string,
+                                battery_status: "ongoing"
+                            });
+                            await newEvent.save();
+                        } else {
+                            const newEvent = new Event({
+                                category: item.category_id.name,
+                                type: item.condition_id.name,
+                                object: tag.tag_id,
+                                zone: tag.zone_id,
+                                information: string,
+                            });
+                            await newEvent.save();
+                        }
                     }
+                    const data = {
+                        'tag_id': tag.tag_id,
+                        'zone_id': tag.zone_id,
+                        'message': flag
+                    }
+                    webHookData.push(data)
+                    fitConditions.push({ condition: item.condition_id, category: item.category_id.name })
                 }
-                const data = {
-                    'tag_id': tag.tag_id,
-                    'zone_id': tag.zone_id,
-                    'message': flag
-                }
-                webHookData.push(data)
-                fitConditions.push({ condition: item.condition_id, category: item.category_id.name })
-            }
-        })
-        const zoneDetail = await Zone.findById(tag.zone_id)
-        const currentTime = new Date();
-        const tagTime = new Date(tag.time);
-        const timeDifference = currentTime - tagTime;
-        if (timeDifference > 5 * 60 * 1000 && tag.status != 'no data' && tag.status != 'lost') {
-            const category = "info";
-            tag.status = 'no data'; // Update the status
-            await tag.save(); // Save the updated tag
-            const data = {
-                'tag_id': tag.tag_id,
-                'zone_id': tag.zone_id,
-                'message': `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zoneDetail?.title})`
-            }
-            broadcastToClients(data, "tag_nodata", "info")
-            const type = "tag_nodata";
-            const object = tag.tag_id;
-            const zone = tag.zone_id;
-            const information = `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zoneDetail?.title})`
-            const newEvent = new Event({
-                category,
-                type,
-                object,
-                zone,
-                information
-            });
-            await newEvent.save();
-            const condition_id = await Condition.findOne({ name: "tag_nodata", type: "system" })
-            webHookData.push(data)
-            fitConditions.push({ condition: condition_id, category: "info" })
-        }
-        if (timeDifference > 120 * 60 * 1000 && tag.status != 'lost') {
-            const category = "info";
-            tag.status = 'lost'; // Update the status
-            await tag.save(); // Save the updated tag
-            const data = {
-                'tag_id': tag.tag_id,
-                'zone_id': tag.zone_id,
-                'message': `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zoneDetail?.title})`
-            }
-            broadcastToClients(data, "tag_lost", "info")
-            const type = "tag_lost";
-            const object = tag.tag_id;
-            const zone = tag.zone_id;
-            const information = `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zoneDetail?.title})`
-            const newEvent = new Event({
-                category,
-                type,
-                object,
-                zone,
-                information
-            });
-            await newEvent.save();
-            const condition_id = await Condition.findOne({ name: "tag_lost", type: "system" })
-            webHookData.push(data)
-            fitConditions.push({ condition: condition_id, category: "info" })
-        }
-        if (tag.is_new == true) {
-            const category = "info";
-            tag.is_new = false; // Update the status
-            await tag.save(); // Save the updated tag
-            const data = {
-                'tag_id': tag.tag_id,
-                'zone_id': tag.zone_id,
-                'message': `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zoneDetail?.title})`
-            }
-            broadcastToClients(data, "tag_detected", "info")
-            const type = "tag_detected";
-            const object = tag.tag_id;
-            const zone = tag.zone_id;
-            const information = `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zoneDetail?.title})`
-            const newEvent = new Event({
-                category,
-                type,
-                object,
-                zone,
-                information
-            });
-            await newEvent.save();
-            const condition_id = await Condition.findOne({ name: "tag_detected", type: "system" })
-            webHookData.push(data)
-            fitConditions.push({ condition: condition_id, category: "info" })
-        }
-        if (tag.manuf_data) {
-            const zone = await Zone.findById(tag.zone_id)
-            let middle_standard = 3.0
-            let low_standard = 2.3
-            const category = "issue";
-            let type = ""
-            let battery_status = ""
-            if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != "battery_good" && tag.status != 'no data' && tag.status != 'lost') {
-                content = `battery(${tag.manuf_data.vbatt}) is good`
-                type = "battery_good"
-                if (tag.battery_status == 'battery_low' || tag.battery_status == 'battery_middle') {
-                    battery_status = 'resolved'
-                }
-            }
-            if (tag.manuf_data.vbatt >= low_standard && tag.battery_status != "battery_middle" && tag.status != 'no data' && tag.status != 'lost') {
-                if (tag.battery_status == 'battery_low') {
-                    battery_status = 'resolved'
-                }
-                if (tag.battery_status == 'battery_good') {
-                    battery_status = 'ongoing'
-                }
-                content = `battery(${tag.manuf_data.vbatt}) is middle`
-                type = "battery_middle"
-            }
-            if (tag.manuf_data.vbatt < low_standard && tag.battery_status != "battery_low" && tag.status != 'no data' && tag.status != 'lost') {
-                content = `battery(${tag.manuf_data.vbatt}) is low`
-                type = "battery_low"
-                if (tag.battery_status == 'battery_middle' || tag.battery_status == 'battery_good') {
-                    battery_status = 'ongoing'
-                }
-            }
-            if (type != "") {
-                const data = {
-                    'tag_id': tag.tag_id,
-                    'zone_id': tag.zone_id,
-                    'message': `tag(${tag.tag_id})'s` + content,
-                }
-                const object = tag.tag_id;
-                const zone = tag.zone_id;
-                const information = `tag(${tag.tag_id})'s ` + content;
-                broadcastToClients(data, type, "issue")
-                tag.battery_status = type
-                await tag.save();
-                if (battery_status != "") {
-                    const newEvent = new Event({
-                        category,
-                        type,
-                        object,
-                        zone,
-                        information,
-                        battery_status
-                    });
-                    await newEvent.save();
-                } else {
-                    const newEvent = new Event({
-                        category,
-                        type,
-                        object,
-                        zone,
-                        information
-                    });
-                    await newEvent.save();
-                }
-                const condition_id = await Condition.findOne({ name: type, type: "system" })
-                webHookData.push(data)
-                fitConditions.push({ condition: condition_id, category: "issue" })
             }
         }
-        await actions.forEach(async (action) => {
-            const result = await checkActionWithConditions(action, fitConditions)
-            if (result) {
-                await runAction(action, webHookData)
-            }
-        });
     })
-
+    const zoneDetail = await Zone.findById(tag.zone_id)
+    const currentTime = new Date();
+    const tagTime = new Date(tag.time);
+    const timeDifference = currentTime - tagTime;
+    if (timeDifference > 5 * 60 * 1000 && tag.status != 'no data' && tag.status != 'lost') {
+        const category = "info";
+        tag.status = 'no data'; // Update the status
+        await tag.save(); // Save the updated tag
+        const data = {
+            'tag_id': tag.tag_id,
+            'zone_id': tag.zone_id,
+            'message': `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zoneDetail?.title})`
+        }
+        broadcastToClients(data, "tag_nodata", "info")
+        const type = "tag_nodata";
+        const object = tag.tag_id;
+        const zone = tag.zone_id;
+        const information = `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zoneDetail?.title})`
+        const newEvent = new Event({
+            category,
+            type,
+            object,
+            zone,
+            information
+        });
+        await newEvent.save();
+        const condition_id = await Condition.findOne({ name: "tag_nodata", type: "system" })
+        webHookData.push(data)
+        fitConditions.push({ condition: condition_id, category: "info" })
+    }
+    if (timeDifference > 120 * 60 * 1000 && tag.status != 'lost') {
+        const category = "info";
+        tag.status = 'lost'; // Update the status
+        await tag.save(); // Save the updated tag
+        const data = {
+            'tag_id': tag.tag_id,
+            'zone_id': tag.zone_id,
+            'message': `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zoneDetail?.title})`
+        }
+        broadcastToClients(data, "tag_lost", "info")
+        const type = "tag_lost";
+        const object = tag.tag_id;
+        const zone = tag.zone_id;
+        const information = `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zoneDetail?.title})`
+        const newEvent = new Event({
+            category,
+            type,
+            object,
+            zone,
+            information
+        });
+        await newEvent.save();
+        const condition_id = await Condition.findOne({ name: "tag_lost", type: "system" })
+        webHookData.push(data)
+        fitConditions.push({ condition: condition_id, category: "info" })
+    }
+    if (tag.is_new == true) {
+        const category = "info";
+        tag.is_new = false; // Update the status
+        await tag.save(); // Save the updated tag
+        const data = {
+            'tag_id': tag.tag_id,
+            'zone_id': tag.zone_id,
+            'message': `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zoneDetail?.title})`
+        }
+        broadcastToClients(data, "tag_detected", "info")
+        const type = "tag_detected";
+        const object = tag.tag_id;
+        const zone = tag.zone_id;
+        const information = `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zoneDetail?.title})`
+        const newEvent = new Event({
+            category,
+            type,
+            object,
+            zone,
+            information
+        });
+        await newEvent.save();
+        const condition_id = await Condition.findOne({ name: "tag_detected", type: "system" })
+        webHookData.push(data)
+        fitConditions.push({ condition: condition_id, category: "info" })
+    }
+    if (tag.manuf_data) {
+        const zone = await Zone.findById(tag.zone_id)
+        let middle_standard = 3.0
+        let low_standard = 2.3
+        const category = "issue";
+        let type = ""
+        let battery_status = ""
+        if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != "battery_good" && tag.status != 'no data' && tag.status != 'lost') {
+            content = `battery(${tag.manuf_data.vbatt}) is good`
+            type = "battery_good"
+            if (tag.battery_status == 'battery_low' || tag.battery_status == 'battery_middle') {
+                battery_status = 'resolved'
+            }
+        }
+        if (tag.manuf_data.vbatt >= low_standard && tag.battery_status != "battery_middle" && tag.status != 'no data' && tag.status != 'lost') {
+            if (tag.battery_status == 'battery_low') {
+                battery_status = 'resolved'
+            }
+            if (tag.battery_status == 'battery_good') {
+                battery_status = 'ongoing'
+            }
+            content = `battery(${tag.manuf_data.vbatt}) is middle`
+            type = "battery_middle"
+        }
+        if (tag.manuf_data.vbatt < low_standard && tag.battery_status != "battery_low" && tag.status != 'no data' && tag.status != 'lost') {
+            content = `battery(${tag.manuf_data.vbatt}) is low`
+            type = "battery_low"
+            if (tag.battery_status == 'battery_middle' || tag.battery_status == 'battery_good') {
+                battery_status = 'ongoing'
+            }
+        }
+        if (type != "") {
+            const data = {
+                'tag_id': tag.tag_id,
+                'zone_id': tag.zone_id,
+                'message': `tag(${tag.tag_id})'s` + content,
+            }
+            const object = tag.tag_id;
+            const zone = tag.zone_id;
+            const information = `tag(${tag.tag_id})'s ` + content;
+            broadcastToClients(data, type, "issue")
+            tag.battery_status = type
+            await tag.save();
+            if (battery_status != "") {
+                const newEvent = new Event({
+                    category,
+                    type,
+                    object,
+                    zone,
+                    information,
+                    battery_status
+                });
+                await newEvent.save();
+            } else {
+                const newEvent = new Event({
+                    category,
+                    type,
+                    object,
+                    zone,
+                    information
+                });
+                await newEvent.save();
+            }
+            const condition_id = await Condition.findOne({ name: type, type: "system" })
+            webHookData.push(data)
+            fitConditions.push({ condition: condition_id, category: "issue" })
+        }
+    }
+    await actions.forEach(async (action) => {
+        const result = await checkActionWithConditions(action, fitConditions)
+        if (result) {
+            await runAction(action, webHookData)
+        }
+    });
 }
-// setInterval(() => {
-checkTagStatus()
-// }, 5 * 60 * 1000);
+async function checkTagStatus(minute) {
+    const tags = await TagStatus.find()
+    tags.forEach(async (tag) => {
+        checkTag(tag, "every-minute", minute)
+    })
+}
+let minute = 0
+const checkEveryMinute = async () => {
+    minute++
+    checkTagStatus(minute)
+}
+setInterval(() => {
+    checkEveryMinute()
+}, 60 * 1000);
 module.exports = {
     checkEvent
 };
