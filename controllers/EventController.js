@@ -13,6 +13,7 @@ const axios = require('axios');
 const nodemailer = require('nodemailer');
 let isChecking = false
 let checkingTags = []
+let checkingTagConditions = []
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
     database: "prod",
@@ -196,6 +197,7 @@ async function getTagsLastLocation(zoneId = null) {
 };
 let tagIds = []
 let tagEvents = []
+
 async function checkEvent(event, zone_id, areas, ws) {
     const tagInfo = JSON.parse(event)
     if (tagIds.length == 0) {
@@ -291,6 +293,7 @@ async function checkEvent(event, zone_id, areas, ws) {
         }
     }
 }
+
 const checkCustomCondition = async (tag, condition, category) => {
     if (condition.type == "custom") {
         if (tag[condition.category]) {
@@ -318,6 +321,7 @@ const checkCustomCondition = async (tag, condition, category) => {
         return false
     }
 }
+
 const checkActionWithConditions = async (action, conditions) => {
     let isLocationCondition = false
     let localtionCondition = ''
@@ -368,12 +372,14 @@ const checkActionWithConditions = async (action, conditions) => {
         return false
     }
 }
+
 /**
  * Runs an action by sending a webhook to the specified webhook_id and using the supplied webHookData
  * @param {Object} action - The action to run
  * @param {Array} webHookData - The data to be sent with the webhook. Each element of the array should be an object with the following properties: tag_id, zone_id, message
  * @returns {Promise} - A promise that resolves when the webhook has been sent
  */
+
 const runAction = async (action, webHookData) => {
     console.log(action, "action")
     const webhook = await WebHookModel.findById(action.webHook)
@@ -390,6 +396,7 @@ const runAction = async (action, webHookData) => {
     console.log(data, "data")
     await runWebHook(webhook, data)
 }
+
 async function checkTag(tag, type, period) {
     console.log(Category, "Category")
     console.log(Condition, "Condition")
@@ -398,8 +405,9 @@ async function checkTag(tag, type, period) {
     const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
     let fitConditions = []
     let webHookData = []
-    console.log(category_conditions, "category_conditions")
     category_conditions.forEach(async (item) => {
+        if (checkingTagConditions.includes(tag.tag_id + "_" + item.condition_id)) return
+        checkingTagConditions = [...checkingTagConditions, tag.tag_id + "_" + item.condition_id]
         const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
         const condition = item.condition_id
         if (condition.checkingType == type) {
@@ -531,6 +539,7 @@ async function checkTag(tag, type, period) {
                 }
             }
         }
+        checkingTagConditions = checkingTagConditions.filter(item => item != tag.tag_id + "_" + item.condition_id)
     })
     const zoneDetail = await Zone.findById(tag.zone_id)
     const currentTime = new Date();
@@ -688,8 +697,9 @@ async function checkTag(tag, type, period) {
             await runAction(action, webHookData)
         }
     });
-    checkingTags = [checkingTags.filter((item) => item !== tag.tag_id)]
+    checkingTags = checkingTags.filter((item) => item !== tag.tag_id)
 }
+
 async function checkTagStatus(minute) {
     const tags = await TagStatus.find()
     tags.forEach(async (tag) => {
@@ -699,14 +709,18 @@ async function checkTagStatus(minute) {
         }
     })
 }
+
 let minute = 0
+
 const checkEveryMinute = async () => {
     minute++
     checkTagStatus(minute)
 }
+
 setInterval(() => {
     checkEveryMinute()
 }, 60 * 1000);
+
 module.exports = {
     checkEvent
 };
