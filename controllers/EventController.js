@@ -11,6 +11,8 @@ const WebHookModel = require('../models/webHook.js');
 const Influx = require('influx');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
+let isChecking = false
+let checkingTags = []
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
     database: "prod",
@@ -283,7 +285,10 @@ async function checkEvent(event, zone_id, areas, ws) {
     }
     const tagStatus = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
     if (tagStatus) {
-        await checkTag(tagStatus, "real-time", null)
+        if (!checkingTags.includes(tagStatus.tag_id)) {
+            checkingTags = [...checkingTags, tagStatus.tag_id]
+            await checkTag(tagStatus, "real-time", null)
+        }
     }
 }
 const checkCustomCondition = async (tag, condition, category) => {
@@ -683,11 +688,15 @@ async function checkTag(tag, type, period) {
             await runAction(action, webHookData)
         }
     });
+    checkingTags = [checkingTags.filter((item) => item !== tag.tag_id)]
 }
 async function checkTagStatus(minute) {
     const tags = await TagStatus.find()
     tags.forEach(async (tag) => {
-        checkTag(tag, "every-minute", minute)
+        if (!checkingTags.includes(tag.tag_id)) {
+            checkingTags = [...checkingTags, tag.tag_id]
+            await checkTag(tag, "every-minute", minute)
+        }
     })
 }
 let minute = 0
