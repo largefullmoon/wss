@@ -407,9 +407,10 @@ async function checkTag(tag, type, period) {
     let webHookData = []
     category_conditions.forEach(async (item) => {
         if (checkingTagConditions.includes(tag.tag_id + "_" + item.condition_id)) return
+        const condition = item.condition_id
+        if (!condition.selectedZones.includes(tag.zone_id.toString())) return
         checkingTagConditions = [...checkingTagConditions, tag.tag_id + "_" + item.condition_id]
         const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
-        const condition = item.condition_id
         if (condition.checkingType == type) {
             let isTrue = true
             if (condition.checkingType == "every-minute" && (period % checkingPeriod) == 0) {
@@ -466,7 +467,8 @@ async function checkTag(tag, type, period) {
                                 object: tag.tag_id,
                                 zone: tag.zone_id,
                                 information: string,
-                                battery_status: "resolved"
+                                battery_status: "resolved",
+                                color: "green"
                             });
                             await newEvent.save();
                             await TagStatus.findByIdAndUpdate(tag._id, {
@@ -508,6 +510,19 @@ async function checkTag(tag, type, period) {
                                 runConditions: [...tag.runConditions, condition._id],
                             }, { new: true })
                         }
+                        let color = ""
+                        if (condition.severity == "info") {
+                            color = 'blue'
+                        }
+                        if (condition.severity == "warning") {
+                            color = 'yellow'
+                        }
+                        if (condition.severity == "error") {
+                            color = 'red'
+                        }
+                        if (condition.severity == "critical") {
+                            color = 'dark red'
+                        }
                         if (condition.category == 'issue') {
                             const newEvent = new Event({
                                 category: item.category_id.name,
@@ -515,7 +530,8 @@ async function checkTag(tag, type, period) {
                                 object: tag.tag_id,
                                 zone: tag.zone_id,
                                 information: string,
-                                battery_status: "ongoing"
+                                battery_status: "ongoing",
+                                color
                             });
                             await newEvent.save();
                         } else {
@@ -630,19 +646,23 @@ async function checkTag(tag, type, period) {
         const category = "issue";
         let type = ""
         let battery_status = ""
+        let color = ""
         if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != "battery_good" && tag.status != 'no data' && tag.status != 'lost') {
             content = `battery(${tag.manuf_data.vbatt}) is good`
             type = "battery_good"
             if (tag.battery_status == 'battery_low' || tag.battery_status == 'battery_middle') {
                 battery_status = 'resolved'
+                color = "green"
             }
         }
         if (tag.manuf_data.vbatt >= low_standard && tag.battery_status != "battery_middle" && tag.status != 'no data' && tag.status != 'lost') {
             if (tag.battery_status == 'battery_low') {
                 battery_status = 'resolved'
+                color = "green"
             }
             if (tag.battery_status == 'battery_good') {
                 battery_status = 'ongoing'
+                color = "blue"
             }
             content = `battery(${tag.manuf_data.vbatt}) is middle`
             type = "battery_middle"
@@ -652,6 +672,7 @@ async function checkTag(tag, type, period) {
             type = "battery_low"
             if (tag.battery_status == 'battery_middle' || tag.battery_status == 'battery_good') {
                 battery_status = 'ongoing'
+                color = "blue"
             }
         }
         if (type != "") {
@@ -673,7 +694,8 @@ async function checkTag(tag, type, period) {
                     object,
                     zone,
                     information,
-                    battery_status
+                    battery_status,
+                    color
                 });
                 await newEvent.save();
             } else {

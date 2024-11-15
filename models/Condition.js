@@ -27,6 +27,9 @@ const conditionSchema = new mongoose.Schema(
     },
     checkingPeriod: {
       type: String,
+    },
+    severity: {
+      type: String,
     }
   },
   { timestamps: true }
