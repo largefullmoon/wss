@@ -453,14 +453,14 @@ async function checkTag(tag, type, period) {
                         return item.toString()
                     })
                     if (!flag && runConditions.includes(condition._id.toString()) && category == 'issue') {
-                        let isCheck = false
-                        if (tag[`${condition.category}`] && tag[`previous_${condition.category}`]) {
-                            condition.conditions.forEach((param, index) => {
-                                if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
-                                    isCheck = true
-                                }
-                            })
-                        }
+                        let isCheck = true
+                        // if (tag[`${condition.category}`] && tag[`previous_${condition.category}`]) {
+                        //     condition.conditions.forEach((param, index) => {
+                        //         if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
+                        //             isCheck = true
+                        //         }
+                        //     })
+                        // }
                         if (isCheck) {
                             const newEvent = new Event({
                                 category: item.category_id.name,
@@ -478,7 +478,6 @@ async function checkTag(tag, type, period) {
                         }
                     }
                 }
-                console.log(flag, "flag")
                 if (flag) {
                     const runConditions = tag.runConditions.map((item) => {
                         return item.toString()
