@@ -454,27 +454,21 @@ async function checkTag(tag, type, period) {
                     })
                     if (!flag && runConditions.includes(condition._id.toString()) && category == 'issue') {
                         let isCheck = true
-                        // if (tag[`${condition.category}`] && tag[`previous_${condition.category}`]) {
-                        //     condition.conditions.forEach((param, index) => {
-                        //         if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
-                        //             isCheck = true
-                        //         }
-                        //     })
-                        // }
                         if (isCheck) {
-                            const newEvent = new Event({
-                                category: item.category_id.name,
-                                type: item.condition_id.name,
-                                object: tag.tag_id,
-                                zone: tag.zone_id,
-                                information: string,
-                                battery_status: "resolved",
-                                color: "green"
-                            });
-                            await newEvent.save();
                             await TagStatus.findByIdAndUpdate(tag._id, {
-                                runConditions: tag.runConditions.filter((item) => item.toString() != condition._id.toString),
+                                runConditions: tag.runConditions.filter((item) => item.toString() != condition._id.toString()),
                             }, { new: true })
+                            const ongoingTarget = tag.ongoingEvents.filter((ongoingEvent) => {
+                                return ongoingEvent.condition_id == condition._id.toString()
+                            })[0]
+                            if (ongoingTarget) {
+                                await Event.findByIdAndUpdate(ongoingTarget.event_id, { battery_status: "resolved" })
+                                await TagStatus.findByIdAndUpdate(tag._id, {
+                                    ongoingEvents: [tag.ongoingEvents.filter((ongoingEvent) => {
+                                        return ongoingEvent.condition_id == condition._id.toString()
+                                    })],
+                                }, { new: true })
+                            }
                         }
                     }
                 }
@@ -504,12 +498,6 @@ async function checkTag(tag, type, period) {
                             previous_manuf_data: tag.manuf_data,
                             previous_position: tag.position,
                         }, { new: true })
-                        if (runConditions && runConditions.includes(condition._id.toString())) {
-                        } else {
-                            await TagStatus.findByIdAndUpdate(tag._id, {
-                                runConditions: [...tag.runConditions, condition._id],
-                            }, { new: true })
-                        }
                         let color = ""
                         if (condition.severity == "info") {
                             color = 'blue'
@@ -523,6 +511,12 @@ async function checkTag(tag, type, period) {
                         if (condition.severity == "critical") {
                             color = 'dark red'
                         }
+                        if (runConditions && runConditions.includes(condition._id.toString())) {
+                        } else {
+                            await TagStatus.findByIdAndUpdate(tag._id, {
+                                runConditions: [...tag.runConditions, condition._id],
+                            }, { new: true })
+                        }
                         if (category == 'issue') {
                             const newEvent = new Event({
                                 category: item.category_id.name,
@@ -533,7 +527,13 @@ async function checkTag(tag, type, period) {
                                 battery_status: "ongoing",
                                 color
                             });
-                            await newEvent.save();
+                            const result = await newEvent.save();
+                            if (runConditions && runConditions.includes(condition._id.toString())) {
+                            } else {
+                                await TagStatus.findByIdAndUpdate(tag._id, {
+                                    ongoingEvents: [...tag.ongoingEvents, { condition_id: condition._id, event_id: result._id }],
+                                }, { new: true })
+                            }
                         } else {
                             const newEvent = new Event({
                                 category: item.category_id.name,
@@ -647,18 +647,21 @@ async function checkTag(tag, type, period) {
         let type = ""
         let battery_status = ""
         let color = ""
+        let pre_battery_status = ""
         if (tag.manuf_data.vbatt >= middle_standard && tag.battery_status != "battery_good" && tag.status != 'no data' && tag.status != 'lost') {
             content = `battery(${tag.manuf_data.vbatt}) is good`
             type = "battery_good"
             if (tag.battery_status == 'battery_low' || tag.battery_status == 'battery_middle') {
                 battery_status = 'resolved'
                 color = "green"
+                pre_battery_status = ["battery_middle"]
             }
         }
         if (tag.manuf_data.vbatt >= low_standard && tag.battery_status != "battery_middle" && tag.status != 'no data' && tag.status != 'lost') {
             if (tag.battery_status == 'battery_low') {
                 battery_status = 'resolved'
                 color = "green"
+                pre_battery_status = ["battery_low"]
             }
             if (tag.battery_status == 'battery_good') {
                 battery_status = 'ongoing'
@@ -688,16 +691,49 @@ async function checkTag(tag, type, period) {
             tag.battery_status = type
             await tag.save();
             if (battery_status != "") {
-                const newEvent = new Event({
-                    category,
-                    type,
-                    object,
-                    zone,
-                    information,
-                    battery_status,
-                    color
-                });
-                await newEvent.save();
+                if (battery_status == "ongoing") {
+                    const newEvent = new Event({
+                        category,
+                        type,
+                        object,
+                        zone,
+                        information,
+                        battery_status,
+                        color
+                    });
+                    const result = await newEvent.save();
+                    await TagStatus.findByIdAndUpdate(tag._id, {
+                        ongoingEvents: [...tag.ongoingEvents, { condition_id: type, event_id: result._id }],
+                    }, { new: true })
+                }
+                if (battery_status == "resolved") {
+                    if (type == "battery_middle") {
+                        const newEvent = new Event({
+                            category,
+                            type,
+                            object,
+                            zone,
+                            information,
+                            battery_status: "ongoing",
+                            color
+                        });
+                        const result = await newEvent.save();
+                        await TagStatus.findByIdAndUpdate(tag._id, {
+                            ongoingEvents: [...tag.ongoingEvents, { condition_id: type, event_id: result._id }],
+                        }, { new: true })
+                    }
+                    const ongoingTarget = tag.ongoingEvents.filter((ongoingEvent) => {
+                        return pre_battery_status.includes(ongoingEvent.condition_id)
+                    })[0]
+                    if (ongoingTarget) {
+                        await Event.findByIdAndUpdate(ongoingTarget.event_id, { battery_status: "resolved" })
+                        await TagStatus.findByIdAndUpdate(tag._id, {
+                            ongoingEvents: [tag.ongoingEvents.filter((ongoingEvent) => {
+                                return ongoingEvent.condition_id == type
+                            })],
+                        }, { new: true })
+                    }
+                }
             } else {
                 const newEvent = new Event({
                     category,

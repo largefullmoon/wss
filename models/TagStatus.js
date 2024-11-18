@@ -42,6 +42,10 @@ const tagSchema = new mongoose.Schema(
             type: Object,
             default: [],
         },
+        ongoingEvents: {
+            type: Object,
+            default: [],
+        },
         time: {
             type: Date,
             default: null,
