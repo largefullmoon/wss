@@ -462,7 +462,7 @@ async function checkTag(tag, type, period) {
                                 return ongoingEvent.condition_id == condition._id.toString()
                             })[0]
                             if (ongoingTarget) {
-                                await Event.findByIdAndUpdate(ongoingTarget.event_id, { battery_status: "resolved" })
+                                await Event.findByIdAndUpdate(ongoingTarget.event_id, { battery_status: "resolved", color: "green" })
                                 await TagStatus.findByIdAndUpdate(tag._id, {
                                     ongoingEvents: [tag.ongoingEvents.filter((ongoingEvent) => {
                                         return ongoingEvent.condition_id == condition._id.toString()
@@ -500,16 +500,16 @@ async function checkTag(tag, type, period) {
                         }, { new: true })
                         let color = ""
                         if (condition.severity == "info") {
-                            color = 'blue'
+                            color = '#006FEE'
                         }
                         if (condition.severity == "warning") {
-                            color = 'yellow'
+                            color = '#F5A524'
                         }
                         if (condition.severity == "error") {
-                            color = 'red'
+                            color = '#F31260'
                         }
                         if (condition.severity == "critical") {
-                            color = 'dark red'
+                            color = 'red'
                         }
                         if (runConditions && runConditions.includes(condition._id.toString())) {
                         } else {
@@ -726,7 +726,7 @@ async function checkTag(tag, type, period) {
                         return pre_battery_status.includes(ongoingEvent.condition_id)
                     })[0]
                     if (ongoingTarget) {
-                        await Event.findByIdAndUpdate(ongoingTarget.event_id, { battery_status: "resolved" })
+                        await Event.findByIdAndUpdate(ongoingTarget.event_id, { battery_status: "resolved", color })
                         await TagStatus.findByIdAndUpdate(tag._id, {
                             ongoingEvents: [tag.ongoingEvents.filter((ongoingEvent) => {
                                 return ongoingEvent.condition_id == type
