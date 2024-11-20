@@ -55,7 +55,7 @@ wss.on('connection', (ws, req) => {
 });
 const runWebHook = async (webHook, data) => {
     if (webHook.type == "email") {
-        const text = data.message
+        const text = ""
         const mailOptions = {
             from: 'test@tonytest.top',
             to: webhookUrl.email,
@@ -74,7 +74,7 @@ const runWebHook = async (webHook, data) => {
     if (webHook.type == "webhook") {
         try {
             const params = webHook.params;
-            let postData = {}
+            let postData = { 'conditions': data.conditions }
             const asset = await Asset.findOne({ tag: data['tag_id'] });
             for (let i = 0; i < params.length; i++) {
                 if (params[i].type == "default") {
@@ -112,6 +112,7 @@ const runWebHook = async (webHook, data) => {
                     postData[params[i].key] = params[i].value
                 }
             }
+            console.log(postData, "postData")
             const response = await axios.post(webHook.webhookUrl, postData, {
                 headers: {
                     'Content-Type': 'application/json'
@@ -205,7 +206,9 @@ async function checkEvent(event, zone_id, areas, ws) {
     }
     if (!areas) {
         const map = await Map.findOne({ zone: zone_id })
-        areas = await Area.find({ map: map._id })
+        if (map) {
+            areas = await Area.find({ map: map._id })
+        }
     }
     if (tagInfo.type == "position_data") {
         for (let i = 0; i < areas.length; i++) {
@@ -274,9 +277,13 @@ async function checkEvent(event, zone_id, areas, ws) {
                     broadcastToClients(data, "tag_exited_area", "location")
                     const tag = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
                     const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
-                    actions.forEach(action => {
+                    actions.forEach(async (action) => {
                         if (action.locationcondition_id) {
                             if (action.locationcondition_id.name == 'tag_exited_area') {
+                                if (action.count > 0 && action.executionType == "once") {
+                                    return false
+                                }
+                                await Action.findByIdAndUpdate(action._id, { count: action.count + 1 })
                                 runAction(action, [data])
                             }
                         }
@@ -347,7 +354,6 @@ const checkActionWithConditions = async (action, conditions) => {
             }
             conditions.forEach(element => {
                 if (element.category == param.category_id.name && element.condition._id.toString() == param.condition_id.toString()) {
-                    console.log("--------------+++++++++++++---------------")
                     if (flag == false) {
                         flag = true
                         compareString += 'true'
@@ -358,10 +364,7 @@ const checkActionWithConditions = async (action, conditions) => {
         if (flag == false) {
             compareString += 'false'
         }
-        console.log("++++++++++++++++++++++++++++++++++++++++")
-        console.log(compareString, "compareString")
     });
-    console.log(isLocationCondition, "isLocationCondition")
     if (isLocationCondition && eval(compareString) && compareString != "") {
         await Action.findOneAndUpdate(action._id, { locationcondition_id: localtionCondition })
         return false
@@ -380,21 +383,60 @@ const checkActionWithConditions = async (action, conditions) => {
  * @returns {Promise} - A promise that resolves when the webhook has been sent
  */
 
-const runAction = async (action, webHookData) => {
-    console.log(action, "action")
-    const webhook = await WebHookModel.findById(action.webHook)
-    let messages = ""
-    webHookData.forEach((data) => {
-        messages += data.message + "\n"
+const runAction = async (action, webHookData, fitConditions = []) => {
+    const eventType = await EventType.findById(action.eventType)
+    const tagStatus = await TagStatus.findOne({ tag_id: webHookData[0].tag_id })
+    const conditions = []
+    eventType.params.forEach(async (param) => {
+        const condition = await Condition.findById(param.condition_id)
+        let battery_status = ''
+        if (fitConditions.length > 0) {
+            const fitCondition = fitConditions.filter((c) => c.condition._id.toString() == condition._id.toString())
+            if (fitCondition) {
+                battery_status = fitCondition[0]['battery_status']
+            }
+        }
+        let conditionString = ''
+        condition.conditions.map((c, i) => {
+            const logic = c.param.logic_operator == "And" ? "&&" : "||"
+            if (i != 0) {
+                conditionString += logic + c.param + " " + c.operator + " " + c.standard_value
+            } else {
+                conditionString += c.param + " " + c.operator + " " + c.standard_value
+            }
+        })
+        let data = {}
+        if (battery_status != "") {
+            data = {
+                id: condition._id,
+                name: condition.name,
+                severity: condition.severity,
+                parameters: tagStatus[condition.category],
+                condition: conditionString,
+                description: condition.description,
+                status: battery_status
+            }
+        } else {
+            data = {
+                id: condition._id,
+                name: condition.name,
+                severity: condition.severity,
+                parameters: tagStatus[condition.category],
+                condition: conditionString,
+                description: condition.description,
+            }
+        }
+        conditions.push(data)
     })
-    const data = {
-        'tag_id': webHookData[0].tag_id,
-        'zone_id': webHookData[0].zone_id,
-        'message': messages
-    }
-    console.log(webhook, "webhook")
-    console.log(data, "data")
-    await runWebHook(webhook, data)
+    setTimeout(async () => {
+        const webhook = await WebHookModel.findById(action.webHook)
+        const data = {
+            'tag_id': webHookData[0].tag_id,
+            'zone_id': webHookData[0].zone_id,
+            'conditions': conditions
+        }
+        await runWebHook(webhook, data)
+    }, 500);
 }
 
 async function checkTag(tag, type, period) {
@@ -423,31 +465,31 @@ async function checkTag(tag, type, period) {
                 isTrue = true
             }
             if (isTrue) {
-                const message = condition.message
-                let string = ""
-                if (message != null && message != "") {
-                    const preString = "`" + message + "`"
-                    let params = {}
-                    if (tag.aoa) {
-                        params = { ...params, ...tag.aoa }
-                    }
-                    if (tag.manuf_data) {
-                        params = { ...params, ...tag.manuf_data }
-                    }
-                    if (tag.position) {
-                        params = { ...params, ...tag.position }
-                    }
-                    try {
-                        string = new Function(`
-                            const tag={id:'${tag?.tag_id}'};
-                            const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
-                            const param = ${JSON.stringify(params)};
-                            return ${preString};
-                        `)();
-                    } catch (error) {
-                        console.log(error)
-                    }
-                }
+                const string = condition.description
+                // let string = ""
+                // if (message != null && message != "") {
+                //     const preString = "`" + message + "`"
+                //     let params = {}
+                //     if (tag.aoa) {
+                //         params = { ...params, ...tag.aoa }
+                //     }
+                //     if (tag.manuf_data) {
+                //         params = { ...params, ...tag.manuf_data }
+                //     }
+                //     if (tag.position) {
+                //         params = { ...params, ...tag.position }
+                //     }
+                //     try {
+                //         string = new Function(`
+                //             const tag={id:'${tag?.tag_id}'};
+                //             const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
+                //             const param = ${JSON.stringify(params)};
+                //             return ${preString};
+                //         `)();
+                //     } catch (error) {
+                //         console.log(error)
+                //     }
+                // }
                 if (tag.runConditions) {
                     const runConditions = tag.runConditions.map((item) => {
                         return item.toString()
@@ -468,6 +510,12 @@ async function checkTag(tag, type, period) {
                                         return ongoingEvent.condition_id == condition._id.toString()
                                     })],
                                 }, { new: true })
+                                const data = {
+                                    'tag_id': tag.tag_id,
+                                    'zone_id': tag.zone_id,
+                                }
+                                webHookData.push(data)
+                                fitConditions.push({ condition: item.condition_id, category: item.category_id.name, battery_status: "resolved" })
                             }
                         }
                     }
@@ -486,12 +534,9 @@ async function checkTag(tag, type, period) {
                     } else {
                         isValid = true
                     }
-                    console.log(runConditions)
-                    console.log(condition._id.toString())
                     if (!runConditions.includes(condition._id.toString())) {
                         isValid = true
                     }
-                    console.log(isValid, "isValid")
                     if (isValid) {
                         await TagStatus.findByIdAndUpdate(tag._id, {
                             previous_aoa: tag.aoa,
@@ -551,7 +596,7 @@ async function checkTag(tag, type, period) {
                         'message': flag
                     }
                     webHookData.push(data)
-                    fitConditions.push({ condition: item.condition_id, category: item.category_id.name })
+                    fitConditions.push({ condition: item.condition_id, category: item.category_id.name, battery_status: "ongoing" })
                 }
             }
         }
@@ -665,7 +710,7 @@ async function checkTag(tag, type, period) {
             }
             if (tag.battery_status == 'battery_good') {
                 battery_status = 'ongoing'
-                color = "blue"
+                color = "#006FEE"
             }
             content = `battery(${tag.manuf_data.vbatt}) is middle`
             type = "battery_middle"
@@ -675,7 +720,7 @@ async function checkTag(tag, type, period) {
             type = "battery_low"
             if (tag.battery_status == 'battery_middle' || tag.battery_status == 'battery_good') {
                 battery_status = 'ongoing'
-                color = "blue"
+                color = "#006FEE"
             }
         }
         if (type != "") {
@@ -746,13 +791,14 @@ async function checkTag(tag, type, period) {
             }
             const condition_id = await Condition.findOne({ name: type, type: "system" })
             webHookData.push(data)
-            fitConditions.push({ condition: condition_id, category: "issue" })
+            fitConditions.push({ condition: condition_id, category: "issue", battery_status: battery_status })
         }
     }
     await actions.forEach(async (action) => {
+        console.log("-----------------------")
         const result = await checkActionWithConditions(action, fitConditions)
         if (result) {
-            await runAction(action, webHookData)
+            await runAction(action, webHookData, fitConditions)
         }
     });
     checkingTags = checkingTags.filter((item) => item !== tag.tag_id)
