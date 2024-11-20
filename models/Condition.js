@@ -19,7 +19,10 @@ const conditionSchema = new mongoose.Schema(
     type: {
       type: String,
     },
-    message: {
+    severity: {
+      type: String,
+    },
+    description: {
       type: String,
     },
     checkingType: {
