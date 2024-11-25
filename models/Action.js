@@ -35,8 +35,8 @@ const actionSchema = new mongoose.Schema(
             required: true,
         },
         webHook: {
-            type: mongoose.Schema.Types.ObjectId, ref: "webHook",
-            default: null,
+            type: Array,
+            default: [],
         },
         count: {
             type: Number,

@@ -71,6 +71,9 @@ const runWebHook = async (webHook, data) => {
             }
         });
     }
+    if (webHook.type == "dashboard_notification") {
+        broadcastToClients({ ...data, message: webHook.message })
+    }
     if (webHook.type == "webhook") {
         try {
             const params = webHook.params;
@@ -124,7 +127,7 @@ const runWebHook = async (webHook, data) => {
         }
     }
 }
-const broadcastToClients = async (data, type, category) => {
+const broadcastToClients = async (data) => {
     clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(data));
@@ -238,7 +241,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                         'area_name': tagInfo.tag_id,
                         'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
-                    broadcastToClients(data, "tag_entered_area", "location")
+                    // broadcastToClients(data, "tag_entered_area", "location")
                     const tag = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
                     const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
                     actions.forEach(action => {
@@ -274,7 +277,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                         'area_name': tagInfo.tag_id,
                         'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
-                    broadcastToClients(data, "tag_exited_area", "location")
+                    // broadcastToClients(data, "tag_exited_area", "location")
                     const tag = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
                     const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
                     actions.forEach(async (action) => {
@@ -429,13 +432,15 @@ const runAction = async (action, webHookData, fitConditions = []) => {
         conditions.push(data)
     })
     setTimeout(async () => {
-        const webhook = await WebHookModel.findById(action.webHook)
-        const data = {
-            'tag_id': webHookData[0].tag_id,
-            'zone_id': webHookData[0].zone_id,
-            'conditions': conditions
-        }
-        await runWebHook(webhook, data)
+        action.webHook.map(async (whook) => {
+            const webhook = await WebHookModel.findById(whook)
+            const data = {
+                'tag_id': webHookData[0].tag_id,
+                'zone_id': webHookData[0].zone_id,
+                'conditions': conditions
+            }
+            await runWebHook(webhook, data)
+        })
     }, 500);
 }
 
@@ -615,7 +620,7 @@ async function checkTag(tag, type, period) {
             'zone_id': tag.zone_id,
             'message': `Tag (${tag.tag_id}) sent no data on Zone(${tag.zone_id}, ${zoneDetail?.title})`
         }
-        broadcastToClients(data, "tag_nodata", "info")
+        // broadcastToClients(data, "tag_nodata", "info")
         const type = "tag_nodata";
         const object = tag.tag_id;
         const zone = tag.zone_id;
@@ -641,7 +646,7 @@ async function checkTag(tag, type, period) {
             'zone_id': tag.zone_id,
             'message': `Tag (${tag.tag_id}) is lost on Zone(${tag.zone_id}, ${zoneDetail?.title})`
         }
-        broadcastToClients(data, "tag_lost", "info")
+        // broadcastToClients(data, "tag_lost", "info")
         const type = "tag_lost";
         const object = tag.tag_id;
         const zone = tag.zone_id;
@@ -667,7 +672,7 @@ async function checkTag(tag, type, period) {
             'zone_id': tag.zone_id,
             'message': `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zoneDetail?.title})`
         }
-        broadcastToClients(data, "tag_detected", "info")
+        // broadcastToClients(data, "tag_detected", "info")
         const type = "tag_detected";
         const object = tag.tag_id;
         const zone = tag.zone_id;
@@ -732,7 +737,7 @@ async function checkTag(tag, type, period) {
             const object = tag.tag_id;
             const zone = tag.zone_id;
             const information = `tag(${tag.tag_id})'s ` + content;
-            broadcastToClients(data, type, "issue")
+            // broadcastToClients(data, type, "issue")
             tag.battery_status = type
             await tag.save();
             if (battery_status != "") {
