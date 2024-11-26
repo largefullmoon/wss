@@ -5,7 +5,7 @@ var MQTTPattern = require("mqtt-pattern");
 const TagStatus = require('../models/TagStatus');
 const influx = new Influx.InfluxDB({
   host: "185.61.139.41",
-  database: "prod",
+  database: "fama",
 });
 
 async function outPut(topic, message) {
