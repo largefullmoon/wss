@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const schema = new mongoose.Schema(
   {
     zone: {
-      type: String, required: true, unique: true
+      type: String, required: true
     },
     category: {
       type: String, default: null
