@@ -143,6 +143,7 @@ const { CategoryCondition } = require('../models/CategoryCondition.js');
 const { Category } = require('../models/Category.js');
 const { Condition } = require('../models/Condition.js');
 const EventCount = require('../models/EventCount.js');
+const AssetEventCount = require('../models/AssetEventCount.js');
 // Create a Redis client
 const client = redis.createClient({
     host: '127.0.0.1',  // Redis server host (use localhost for local server)
@@ -858,6 +859,40 @@ const eventCountPerZoneCategory = async () => {
                     critical: criticalOngoingCount
                 }
                 await EventCount.create(data);
+            }
+        })
+    })
+}
+
+const assetEventCountPerZoneCategory = async () => {
+    const zones = await Zone.find()
+    const assets = await Asset.find()
+    const tagIds = assets.map(asset => asset._id.tag)
+    const categories = await Category.find()
+    const oneMinutesAgo = new Date(Date.now() - 60 * 1000);
+    zones.map((zone) => {
+        categories.map(async (category) => {
+            const count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, object: { $in: tagIds } })
+            if (count > 0) {
+                const ongoing_count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'ongoing', object: { $in: tagIds } })
+                const resolved_count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'resolved', object: { $in: tagIds } })
+                const infoOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#006FEE", category: "issue", object: { $in: tagIds } })
+                const warningOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#F5A524", category: "issue", object: { $in: tagIds } })
+                const errorOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#F31260", category: "issue", object: { $in: tagIds } })
+                const criticalOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "red", category: "issue", object: { $in: tagIds } })
+                const data = {
+                    zone: zone._id,
+                    category: category.name,
+                    count: count,
+                    ongoing: ongoing_count,
+                    resolved: resolved_count,
+                    datetime: oneMinutesAgo,
+                    info: infoOngoingCount,
+                    warning: warningOngoingCount,
+                    error: errorOngoingCount,
+                    critical: criticalOngoingCount
+                }
+                await AssetEventCount.create(data);
             }
         })
     })
