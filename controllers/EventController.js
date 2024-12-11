@@ -63,16 +63,19 @@ const runWebHook = async (webHook, data) => {
             text: text,
             html: `<b>${text}</b>`,
         };
-        transporter.sendMail(mailOptions, (error, info) => {
+        transporter.sendMail(mailOptions, async (error, info) => {
             if (error) {
+                await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
                 console.log('Error occurred:', error);
             } else {
+                await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
                 console.log('Email sent:', text);
             }
         });
     }
     if (webHook.type == "dashboard_notification") {
         broadcastToClients({ ...data, message: webHook.message })
+        await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
     }
     if (webHook.type == "webhook") {
         try {
@@ -121,8 +124,9 @@ const runWebHook = async (webHook, data) => {
                     'Content-Type': 'application/json'
                 }
             });
-            console.log('Response:', response);
+            await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
         } catch (error) {
+            await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
             console.error('Error sending POST request:', error.message);
         }
     }
@@ -138,6 +142,7 @@ const redis = require('redis');
 const { CategoryCondition } = require('../models/CategoryCondition.js');
 const { Category } = require('../models/Category.js');
 const { Condition } = require('../models/Condition.js');
+const EventCount = require('../models/EventCount.js');
 // Create a Redis client
 const client = redis.createClient({
     host: '127.0.0.1',  // Redis server host (use localhost for local server)
@@ -826,8 +831,33 @@ const checkEveryMinute = async () => {
     checkTagStatus(minute)
 }
 
+const eventCountPerZoneCategory = async () => {
+    const zones = await Zone.find()
+    const categories = await Category.find()
+    const oneMinutesAgo = new Date(Date.now() - 60 * 1000);
+    zones.map((zone) => {
+        categories.map(async (category) => {
+            const count = Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo } })
+            if (count > 0) {
+                const ongoing_count = Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'ongoing' })
+                const resolved_count = Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'resolved' })
+                const data = {
+                    zone: zone._id,
+                    category: category.name,
+                    count: count,
+                    ongoing: ongoing_count,
+                    resolved: resolved_count,
+                    datetime: oneMinutesAgo
+                }
+                await EventCount.create(data);
+            }
+        })
+    })
+}
+
 setInterval(() => {
     checkEveryMinute()
+    eventCountPerZoneCategory()
 }, 60 * 1000);
 
 module.exports = {

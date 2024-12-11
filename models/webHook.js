@@ -6,6 +6,8 @@ const WebHookSchema = new mongoose.Schema({
     type: { type: String, default: null },
     webhookUrl: { type: String, default: null },
     email: { type: String, default: null },
+    failcount: { type: Number, default: 0 },
+    sentcount: { type: Number, default: 0 },
     message: { type: String, default: null },
     params: [{ type: Object, default: null }],
 });
