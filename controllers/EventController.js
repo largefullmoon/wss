@@ -837,10 +837,10 @@ const eventCountPerZoneCategory = async () => {
     const oneMinutesAgo = new Date(Date.now() - 60 * 1000);
     zones.map((zone) => {
         categories.map(async (category) => {
-            const count = Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo } })
+            const count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo } })
             if (count > 0) {
-                const ongoing_count = Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'ongoing' })
-                const resolved_count = Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'resolved' })
+                const ongoing_count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'ongoing' })
+                const resolved_count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'resolved' })
                 const data = {
                     zone: zone._id,
                     category: category.name,
