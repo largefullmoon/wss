@@ -841,13 +841,21 @@ const eventCountPerZoneCategory = async () => {
             if (count > 0) {
                 const ongoing_count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'ongoing' })
                 const resolved_count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'resolved' })
+                const infoOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#006FEE" })
+                const warningOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#F5A524" })
+                const errorOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#F31260" })
+                const criticalOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "red" })
                 const data = {
                     zone: zone._id,
                     category: category.name,
                     count: count,
                     ongoing: ongoing_count,
                     resolved: resolved_count,
-                    datetime: oneMinutesAgo
+                    datetime: oneMinutesAgo,
+                    info: infoOngoingCount,
+                    warning: warningOngoingCount,
+                    error: errorOngoingCount,
+                    critical: criticalOngoingCount
                 }
                 await EventCount.create(data);
             }

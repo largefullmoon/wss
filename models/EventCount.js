@@ -14,6 +14,18 @@ const schema = new mongoose.Schema(
     count: {
       type: Number, default: 0
     },
+    info: {
+      type: Number, default: 0
+    },
+    warning: {
+      type: Number, default: 0
+    },
+    error: {
+      type: Number, default: 0
+    },
+    critical: {
+      type: Number, default: 0
+    },
     ongoing: {
       type: Number, default: 0
     },
