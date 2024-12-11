@@ -901,6 +901,7 @@ const assetEventCountPerZoneCategory = async () => {
 setInterval(() => {
     checkEveryMinute()
     eventCountPerZoneCategory()
+    assetEventCountPerZoneCategory()
 }, 60 * 1000);
 
 module.exports = {
