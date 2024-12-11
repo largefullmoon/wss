@@ -9,7 +9,7 @@ const schema = new mongoose.Schema(
       type: String, default: null
     },
     datetime: {
-      type: String
+      type: Date
     },
     count: {
       type: Number, default: 0
