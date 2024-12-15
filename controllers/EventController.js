@@ -842,10 +842,10 @@ const eventCountPerZoneCategory = async () => {
             if (count > 0) {
                 const ongoing_count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'ongoing' })
                 const resolved_count = await Event.countDocuments({ zone: zone._id, category: category.name, createdAt: { $gte: oneMinutesAgo }, battery_status: 'resolved' })
-                const infoOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#006FEE", category: "issue" })
-                const warningOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#F5A524", category: "issue" })
-                const errorOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "#F31260", category: "issue" })
-                const criticalOngoingCount = await Event.countDocuments({ zone: zone._id, battery_status: "ongoing", color: "red", category: "issue" })
+                const infoOngoingCount = await Event.countDocuments({ createdAt: { $gte: oneMinutesAgo }, zone: zone._id, battery_status: "ongoing", color: "#006FEE", category: "issue" })
+                const warningOngoingCount = await Event.countDocuments({ createdAt: { $gte: oneMinutesAgo }, zone: zone._id, battery_status: "ongoing", color: "#F5A524", category: "issue" })
+                const errorOngoingCount = await Event.countDocuments({ createdAt: { $gte: oneMinutesAgo }, zone: zone._id, battery_status: "ongoing", color: "#F31260", category: "issue" })
+                const criticalOngoingCount = await Event.countDocuments({ createdAt: { $gte: oneMinutesAgo }, zone: zone._id, battery_status: "ongoing", color: "red", category: "issue" })
                 const data = {
                     zone: zone._id,
                     category: category.name,
