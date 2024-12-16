@@ -225,7 +225,7 @@ async function checkEvent(event, zone_id, areas, ws) {
     if (tagInfo.type == "manuf_data") {
         if (tagInfo.movement_status == 0) {
             if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                const previousdata = await AssetStatus.findOne({ tag_id: tagInfo.tag_id, zone_id: zone_id })
+                const previousdata = await AssetStatus.findOne({ asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id, tag_id: tagInfo.tag_id, zone_id: zone_id }).sort({ createdAt: -1 });
                 if (!previousdata || (previousdata && previousdata.movement_status != 0)) {
                     const assetstatus = new AssetStatus({
                         asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
@@ -238,11 +238,13 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             }
         } else {
-            const previousdata = await AssetStatus.findOne({ tag_id: tagInfo.tag_id, zone_id: zone_id })
-            if (previousdata && previousdata.movement_status == 0) {
-                previousdata.stopTime = new Date()
-                previousdata.movement_status = tagInfo.movement_status
-                await previousdata.save()
+            if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
+                const previousdata = await AssetStatus.findOne({ asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id, tag_id: tagInfo.tag_id, zone_id: zone_id }).sort({ createdAt: -1 });
+                if (previousdata && previousdata.movement_status == 0) {
+                    previousdata.stopTime = new Date()
+                    previousdata.movement_status = tagInfo.movement_status
+                    await previousdata.save()
+                }
             }
         }
         // AssetStatus
@@ -253,14 +255,17 @@ async function checkEvent(event, zone_id, areas, ws) {
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                     if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                        const assetposition = await AssetPosition({
-                            asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
-                            tag_id: tagInfo.tag_id,
-                            zone_id: zone_id,
-                            area_id: areas[i]._id,
-                            enterTime: new Date()
-                        })
-                        await assetposition.save()
+                        const previousdata = await AssetPosition.findOne({ asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id, tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id }).sort({ createdAt: -1 });
+                        if (!previousdata || (previousdata && previousdata.enterTime)) {
+                            const assetposition = await AssetPosition({
+                                asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
+                                tag_id: tagInfo.tag_id,
+                                zone_id: zone_id,
+                                area_id: areas[i]._id,
+                                enterTime: new Date()
+                            })
+                            await assetposition.save()
+                        }
                     }
                     await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
                     const category = 'location'
@@ -298,7 +303,11 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
-                    await AssetPosition.findOneAndUpdate({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true } }, { exitTime: new Date() })
+                    const assetposition = await AssetPosition.findOne({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true } }).sort({ createdAt: -1 });
+                    if (assetposition) {
+                        assetposition.exitTime = new Date();
+                        await assetposition.save()
+                    }
                     setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
                     const category = 'location'
                     const type = "tag_exited_area"
