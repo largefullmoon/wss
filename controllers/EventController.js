@@ -144,6 +144,7 @@ const { Category } = require('../models/Category.js');
 const { Condition } = require('../models/Condition.js');
 const EventCount = require('../models/EventCount.js');
 const AssetEventCount = require('../models/AssetEventCount.js');
+const AssetPosition = require('../models/AssetPosition.js');
 // Create a Redis client
 const client = redis.createClient({
     host: '127.0.0.1',  // Redis server host (use localhost for local server)
@@ -210,6 +211,7 @@ let tagEvents = []
 
 async function checkEvent(event, zone_id, areas, ws) {
     const tagInfo = JSON.parse(event)
+    const assets = await Asset.find()
     if (tagIds.length == 0) {
         tagIds = await getTagsLastLocation(zone_id);
     }
@@ -224,6 +226,15 @@ async function checkEvent(event, zone_id, areas, ws) {
             const currentStatus = await getDeviceInfo(tagInfo.tag_id);
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
+                    // await AssetPosition.findOneAndUpdate({ tag_id: tagInfo.tag_id, zone_id: zone_id }, { status: "in", area: areas[i]._id.toString() }, { upsert: true })
+                    const assetposition = await AssetPosition({
+                        asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
+                        tag_id: tagInfo.tag_id,
+                        zone_id: zone_id,
+                        area_id: areas[i]._id,
+                        enterTime: new Date()
+                    })
+                    await assetposition.save()
                     await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
                     const category = 'location'
                     const type = "tag_entered_area"
@@ -243,7 +254,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                     const data = {
                         'zone_id': zone_id,
                         'tag_id': tagInfo.tag_id,
-                        'area_id': tagInfo.tag_id,
+                        'area_id': area,
                         'area_name': tagInfo.tag_id,
                         'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
@@ -260,6 +271,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
+                    await AssetPosition.findOneAndUpdate({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true } }, { exitTime: new Date() }, { upsert: true })
                     setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
                     const category = 'location'
                     const type = "tag_exited_area"
