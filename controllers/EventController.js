@@ -226,15 +226,16 @@ async function checkEvent(event, zone_id, areas, ws) {
             const currentStatus = await getDeviceInfo(tagInfo.tag_id);
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
-                    // await AssetPosition.findOneAndUpdate({ tag_id: tagInfo.tag_id, zone_id: zone_id }, { status: "in", area: areas[i]._id.toString() }, { upsert: true })
-                    const assetposition = await AssetPosition({
-                        asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
-                        tag_id: tagInfo.tag_id,
-                        zone_id: zone_id,
-                        area_id: areas[i]._id,
-                        enterTime: new Date()
-                    })
-                    await assetposition.save()
+                    if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
+                        const assetposition = await AssetPosition({
+                            asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
+                            tag_id: tagInfo.tag_id,
+                            zone_id: zone_id,
+                            area_id: areas[i]._id,
+                            enterTime: new Date()
+                        })
+                        await assetposition.save()
+                    }
                     await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
                     const category = 'location'
                     const type = "tag_entered_area"
