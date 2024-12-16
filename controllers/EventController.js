@@ -232,7 +232,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                 const previousdata = await AssetStatus.findOne({ asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id, tag_id: tagInfo.tag_id, zone_id: zone_id }).sort({ createdAt: -1 });
                 if ((isStartStatus && !previousdata) || (previousdata && previousdata.movement_status != 0) || !statuses.find(status => status.tag_id == tagInfo.tag_id && status.zone_id == zone_id)) {
                     isStartStatus = false
-                    statuses.puch({
+                    statuses.push({
                         tag_id: tagInfo.tag_id,
                         zone_id: zone_id
                     })
@@ -266,7 +266,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                     if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
                         const previousdata = await AssetPosition.findOne({ asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id, tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id }).sort({ createdAt: -1 });
                         if ((isStartPosition && !previousdata) || (previousdata && previousdata.enterTime)|| !positions.find(position => position.tag_id == tagInfo.tag_id && position.zone_id == zone_id)) {
-                            positions.puch({
+                            positions.push({
                                 tag_id: tagInfo.tag_id,
                                 zone_id: zone_id
                             })
