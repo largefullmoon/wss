@@ -145,6 +145,7 @@ const { Condition } = require('../models/Condition.js');
 const EventCount = require('../models/EventCount.js');
 const AssetEventCount = require('../models/AssetEventCount.js');
 const AssetPosition = require('../models/AssetPosition.js');
+const AssetStatus = require('../models/AssetStatus.js');
 // Create a Redis client
 const client = redis.createClient({
     host: '127.0.0.1',  // Redis server host (use localhost for local server)
@@ -220,6 +221,31 @@ async function checkEvent(event, zone_id, areas, ws) {
         if (map) {
             areas = await Area.find({ map: map._id })
         }
+    }
+    if (tagInfo.type == "manuf_data") {
+        if (tagInfo.movement_status == 0) {
+            if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
+                const previousdata = await AssetStatus.findOne({ tag_id: tagInfo.tag_id, zone_id: zone_id })
+                if (!previousdata || (previousdata && previousdata.movement_status != 0)) {
+                    const assetstatus = new AssetStatus({
+                        asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
+                        tag_id: tagInfo.tag_id,
+                        zone_id: zone_id,
+                        startTime: new Date(),
+                        movement_status: tagInfo.movement_status
+                    })
+                    await assetstatus.save()
+                }
+            }
+        } else {
+            const previousdata = await AssetStatus.findOne({ tag_id: tagInfo.tag_id, zone_id: zone_id })
+            if (previousdata && previousdata.movement_status == 0) {
+                previousdata.stopTime = new Date()
+                previousdata.movement_status = tagInfo.movement_status
+                await previousdata.save()
+            }
+        }
+        // AssetStatus
     }
     if (tagInfo.type == "position_data") {
         for (let i = 0; i < areas.length; i++) {
