@@ -33,7 +33,9 @@ const transporter = nodemailer.createTransport({
     }
 });
 let isStartStatus = true;
+let isStartStatus_saved = true;
 let isStartPosition = true;
+let isStartPosition_saved = true;
 const clients = [];
 // const { ClickHouse } = require('@clickhouse/client');
 wss.on('connection', (ws, req) => {
@@ -228,7 +230,8 @@ async function checkEvent(event, zone_id, areas, ws) {
         if (tagInfo.movement_status == 0) {
             if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
                 const previousdata = await AssetStatus.findOne({ asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id, tag_id: tagInfo.tag_id, zone_id: zone_id }).sort({ createdAt: -1 });
-                if (isStartStatus || (!isStartStatus && !previousdata) || (previousdata && previousdata.movement_status != 0)) {
+                if ((!isStartStatus_saved && !previousdata) || (isStartStatus && !previousdata) || (previousdata && previousdata.movement_status != 0)) {
+                    isStartStatus = false
                     const assetstatus = new AssetStatus({
                         asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
                         tag_id: tagInfo.tag_id,
@@ -237,7 +240,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                         movement_status: tagInfo.movement_status
                     })
                     await assetstatus.save()
-                    isStartStatus = false
+                    isStartStatus_saved = false
                 }
             }
         } else {
@@ -259,7 +262,8 @@ async function checkEvent(event, zone_id, areas, ws) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                     if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
                         const previousdata = await AssetPosition.findOne({ asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id, tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id }).sort({ createdAt: -1 });
-                        if (isStartPosition || (!isStartPosition && !previousdata) || (previousdata && previousdata.enterTime)) {
+                        if ((!isStartPosition_saved && !previousdata) || (isStartPosition && !previousdata) || (previousdata && previousdata.enterTime)) {
+                            isStartPosition = false
                             const assetposition = await AssetPosition({
                                 asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
                                 tag_id: tagInfo.tag_id,
@@ -268,7 +272,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                                 enterTime: new Date()
                             })
                             await assetposition.save()
-                            isStartPosition = false
+                            isStartPosition_saved = false
                         }
                     }
                     await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
