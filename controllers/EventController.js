@@ -271,7 +271,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
-                    await AssetPosition.findOneAndUpdate({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true } }, { exitTime: new Date() }, { upsert: true })
+                    await AssetPosition.findOneAndUpdate({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true } }, { exitTime: new Date() })
                     setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
                     const category = 'location'
                     const type = "tag_exited_area"
