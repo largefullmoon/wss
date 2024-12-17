@@ -264,7 +264,7 @@ async function checkEvent(event, zone_id, areas, ws) {
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                     if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                        const previousdata = await AssetPosition.findAll({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
+                        const previousdata = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
                         if ((isStartPosition && previousdata.length == 0) || (previousdata && previousdata.length == 0) || !positions.find(position => position.tag_id == tagInfo.tag_id && position.zone_id.toString() == zone_id)) {
                             positions.push({
                                 tag_id: tagInfo.tag_id,
@@ -317,7 +317,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
-                    const assetpositions = await AssetPosition.findAll({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true } }).sort({ createdAt: -1 });
+                    const assetpositions = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true } }).sort({ createdAt: -1 });
                     assetpositions.map(async (assetposition) => {
                         assetposition.exitTime = new Date();
                         await assetposition.save()
