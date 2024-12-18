@@ -229,8 +229,8 @@ async function checkEvent(event, zone_id, areas, ws) {
     if (tagInfo.type == "manuf_data") {
         if (tagInfo.movement_status == 0) {
             if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                // const previousdata = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
-                if (statuses.filter(status => status.tag_id == tagInfo.tag_id && status.zone_id == zone_id).length == 0) {
+                const previousdata = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
+                if ((!isStartStatus && statuses.filter(status => status.tag_id == tagInfo.tag_id && status.zone_id == zone_id).length == 0) || (isStartStatus && previousdata.length == 0)) {
                     statuses.push({
                         tag_id: tagInfo.tag_id,
                         zone_id: zone_id
@@ -243,6 +243,9 @@ async function checkEvent(event, zone_id, areas, ws) {
                         movement_status: tagInfo.movement_status
                     })
                     await assetstatus.save()
+                    setTimeout(() => {
+                        isStartStatus = false
+                    }, 1000);
                 }
             }
         } else {
@@ -266,8 +269,8 @@ async function checkEvent(event, zone_id, areas, ws) {
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                     if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                        // const previousdata = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
-                        if (positions.filter(position => position.tag_id == tagInfo.tag_id && position.zone_id == zone_id).length == 0) {
+                        const previousdata = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
+                        if ((!isStartPosition && positions.filter(position => position.tag_id == tagInfo.tag_id && position.zone_id == zone_id).length == 0) && (isStartPosition && previousdata.length == 0)) {
                             positions.push({
                                 tag_id: tagInfo.tag_id,
                                 zone_id: zone_id
@@ -280,7 +283,9 @@ async function checkEvent(event, zone_id, areas, ws) {
                                 enterTime: new Date()
                             })
                             await assetposition.save()
-                            isStartPosition = false
+                            setTimeout(() => {
+                                isStartPosition = false
+                            }, 1000);
                         }
                     }
                     await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
