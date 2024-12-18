@@ -230,22 +230,22 @@ async function checkEvent(event, zone_id, areas, ws) {
         if (tagInfo.movement_status == 0) {
             if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
                 const previousdata = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
-                if ((!isStartStatus && statuses.filter(status => status.tag_id == tagInfo.tag_id && status.zone_id == zone_id).length == 0) || (isStartStatus && previousdata.length == 0)) {
-                    statuses.push({
-                        tag_id: tagInfo.tag_id,
-                        zone_id: zone_id
-                    })
-                    const assetstatus = new AssetStatus({
-                        asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
-                        tag_id: tagInfo.tag_id,
-                        zone_id: zone_id,
-                        startTime: new Date(),
-                        movement_status: tagInfo.movement_status
-                    })
-                    await assetstatus.save()
-                    setTimeout(() => {
-                        isStartStatus = false
-                    }, 1000);
+                if (previousdata.length > 0) {
+                } else {
+                    if (statuses.filter(status => status.tag_id == tagInfo.tag_id && status.zone_id == zone_id).length == 0) {
+                        statuses.push({
+                            tag_id: tagInfo.tag_id,
+                            zone_id: zone_id
+                        })
+                        const assetstatus = new AssetStatus({
+                            asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
+                            tag_id: tagInfo.tag_id,
+                            zone_id: zone_id,
+                            startTime: new Date(),
+                            movement_status: tagInfo.movement_status
+                        })
+                        await assetstatus.save()
+                    }
                 }
             }
         } else {
@@ -270,22 +270,23 @@ async function checkEvent(event, zone_id, areas, ws) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                     if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
                         const previousdata = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
-                        if ((!isStartPosition && positions.filter(position => position.tag_id == tagInfo.tag_id && position.zone_id == zone_id).length == 0) && (isStartPosition && previousdata.length == 0)) {
-                            positions.push({
-                                tag_id: tagInfo.tag_id,
-                                zone_id: zone_id
-                            })
-                            const assetposition = await AssetPosition({
-                                asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
-                                tag_id: tagInfo.tag_id,
-                                zone_id: zone_id,
-                                area_id: areas[i]._id,
-                                enterTime: new Date()
-                            })
-                            await assetposition.save()
-                            setTimeout(() => {
-                                isStartPosition = false
-                            }, 1000);
+                        if (previousdata > 0) {
+
+                        } else {
+                            if (positions.filter(position => position.tag_id == tagInfo.tag_id && position.zone_id == zone_id).length == 0) {
+                                positions.push({
+                                    tag_id: tagInfo.tag_id,
+                                    zone_id: zone_id
+                                })
+                                const assetposition = await AssetPosition({
+                                    asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
+                                    tag_id: tagInfo.tag_id,
+                                    zone_id: zone_id,
+                                    area_id: areas[i]._id,
+                                    enterTime: new Date()
+                                })
+                                await assetposition.save()
+                            }
                         }
                     }
                     await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
