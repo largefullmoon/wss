@@ -229,8 +229,8 @@ async function checkEvent(event, zone_id, areas, ws) {
     if (tagInfo.type == "manuf_data") {
         if (tagInfo.movement_status == 0) {
             if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                const previousdata = await AssetStatus.findOne({ tag_id: tagInfo.tag_id, zone_id: zone_id }).sort({ createdAt: -1 });
-                if ((isStartStatus && !previousdata) || (previousdata && previousdata.movement_status != "0") || !statuses.find(status => status.tag_id == tagInfo.tag_id && status.zone_id.toString() == zone_id)) {
+                const previousdata = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
+                if ((isStartStatus && previousdata.length == 0) || (previousdata.length == 0) || !statuses.find(status => status.tag_id == tagInfo.tag_id && status.zone_id.toString() == zone_id)) {
                     isStartStatus = false
                     statuses.push({
                         tag_id: tagInfo.tag_id,
@@ -248,12 +248,14 @@ async function checkEvent(event, zone_id, areas, ws) {
             }
         } else {
             if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                const previousdata = await AssetStatus.findOne({ tag_id: tagInfo.tag_id, zone_id: zone_id }).sort({ createdAt: -1 });
-                if (previousdata && previousdata.movement_status == 0) {
-                    previousdata.stopTime = new Date()
-                    previousdata.movement_status = tagInfo.movement_status
-                    await previousdata.save()
-                }
+                const previousdatas = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
+                previousdatas.map(async (previousdata) => {
+                    if (previousdata && previousdata.movement_status == 0) {
+                        previousdata.stopTime = new Date()
+                        previousdata.movement_status = tagInfo.movement_status
+                        await previousdata.save()
+                    }
+                })
             }
         }
         // AssetStatus
@@ -317,7 +319,7 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
-                    const assetpositions = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true } }).sort({ createdAt: -1 });
+                    const assetpositions = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
                     assetpositions.map(async (assetposition) => {
                         assetposition.exitTime = new Date();
                         await assetposition.save()
