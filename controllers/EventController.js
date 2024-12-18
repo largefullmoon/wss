@@ -229,9 +229,8 @@ async function checkEvent(event, zone_id, areas, ws) {
     if (tagInfo.type == "manuf_data") {
         if (tagInfo.movement_status == 0) {
             if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                const previousdata = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
-                console.log(previousdata, "previousdata")
-                if ((!isStartStatus && previousdata.length == 0) || statuses.filter(status => status.tag_id == tagInfo.tag_id && status.zone_id.toString() == zone_id).length == 0) {
+                // const previousdata = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
+                if (statuses.filter(status => status.tag_id == tagInfo.tag_id && status.zone_id == zone_id).length == 0) {
                     statuses.push({
                         tag_id: tagInfo.tag_id,
                         zone_id: zone_id
@@ -244,12 +243,12 @@ async function checkEvent(event, zone_id, areas, ws) {
                         movement_status: tagInfo.movement_status
                     })
                     await assetstatus.save()
-                    isStartStatus = false
                 }
             }
         } else {
             if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
                 const previousdatas = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
+                statuses = statuses.filter(status => !status.tag_id == tagInfo.tag_id && status.zone_id == zone_id)
                 previousdatas.map(async (previousdata) => {
                     if (previousdata && previousdata.movement_status == 0) {
                         previousdata.stopTime = new Date()
@@ -267,8 +266,8 @@ async function checkEvent(event, zone_id, areas, ws) {
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
                     if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                        const previousdata = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
-                        if ((!isStartPosition && previousdata.length == 0) || positions.filter(position => position.tag_id == tagInfo.tag_id && position.zone_id.toString() == zone_id).length == 0) {
+                        // const previousdata = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
+                        if (positions.filter(position => position.tag_id == tagInfo.tag_id && position.zone_id == zone_id).length == 0) {
                             positions.push({
                                 tag_id: tagInfo.tag_id,
                                 zone_id: zone_id
@@ -321,6 +320,7 @@ async function checkEvent(event, zone_id, areas, ws) {
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
                     const assetpositions = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
+                    positions = positions.filter(position => !position.tag_id == tagInfo.tag_id && position.zone_id == zone_id)
                     assetpositions.map(async (assetposition) => {
                         assetposition.exitTime = new Date();
                         await assetposition.save()
