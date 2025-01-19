@@ -122,32 +122,32 @@ async function getAllTagData() {
           influx.query(queryPosition)
             .then(async (position_rows) => {
               if (position_rows.length > 0) {
-                position_rows.forEach(async (position_row) => {
-                  position_data = {
-                    x: position_row.x,
-                    y: position_row.y,
-                    z: position_row.z
-                  }
-                })
+                const position_row = position_rows[0]
+                position_data = {
+                  x: position_row.x,
+                  y: position_row.y,
+                  z: position_row.z
+                }
+              }
+              console.log(position_data, "position_data")
+              if (tag) {
+                // Tag exists, update it
+                tag.time = row.time._nanoISO
+                tag.position = position_data
+                await tag.save();
+              } else {
+                // Tag does not exist, create a new one
+                const newTag = new TagStatus({
+                  tag_id: row.tag_id,
+                  zone_id: row.zone,
+                  time: row.time._nanoISO,
+                  position: position_data,
+                  status: "no data",
+                });
+                await newTag.save();
               }
             })
-          console.log(position_data, "position_data")
-          if (tag) {
-            // Tag exists, update it
-            tag.time = row.time._nanoISO
-            tag.position = position_data
-            await tag.save();
-          } else {
-            // Tag does not exist, create a new one
-            const newTag = new TagStatus({
-              tag_id: row.tag_id,
-              zone_id: row.zone,
-              time: row.time._nanoISO,
-              position: position_data,
-              status: "no data",
-            });
-            await newTag.save();
-          }
+
         })
       } else {
         console.log('No data found for the given query.');
