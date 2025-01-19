@@ -158,7 +158,7 @@ const EventCount = require('../models/EventCount.js');
 const AssetEventCount = require('../models/AssetEventCount.js');
 const AssetPosition = require('../models/AssetPosition.js');
 const AssetStatus = require('../models/AssetStatus.js');
-const { default: Notification } = require('../models/Notification.js');
+const Notification = require('../models/Notification.js');
 // Create a Redis client
 const client = redis.createClient({
     host: '127.0.0.1',  // Redis server host (use localhost for local server)
