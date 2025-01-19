@@ -106,14 +106,32 @@ async function getAllTagData() {
       FROM "manuf_data"
       GROUP BY "tag_id", "zone"
     `;
+
   influx.query(query)
     .then(async (rows) => {
       if (rows.length > 0) {
         rows.forEach(async (row) => {
-          const tag = await TagStatus.findOne({ tag_id: row.tag_id, zone_id: row.zone });
+          const tag = await TagStatus.findOne({ tag_id: row.tag_id });
+          const queryPosition = `
+            SELECT LAST(x), *
+              FROM "position"
+              Where zone='` + row.zone + `'
+              and tag_id='`+ row.tag_id + `'
+              GROUP BY "tag_id", "zone"
+            `;
+          let position_data = {}
+          influx.query(queryPosition)
+            .then(async (position_rows) => {
+              if (position_rows.length > 0) {
+                position_rows.forEach(async (position_row) => {
+                  position_data = position_row
+                })
+              }
+            })
           if (tag) {
             // Tag exists, update it
             tag.time = row.time._nanoISO
+            tag.position = position_data
             await tag.save();
           } else {
             // Tag does not exist, create a new one
@@ -121,6 +139,7 @@ async function getAllTagData() {
               tag_id: row.tag_id,
               zone_id: row.zone,
               time: row.time._nanoISO,
+              position: position_data,
               status: "no data",
             });
             await newTag.save();
