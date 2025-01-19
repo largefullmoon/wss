@@ -184,6 +184,7 @@ class MqttHandler {
           var paramsPosition = MQTTPattern.exec(positionPattern, topic)
           if (paramsPosition) {
             const data = JSON.parse(message.toString());
+            console.log(data, "position_data");
             let wsmessage = {
               ...data,
               tag_id: paramsPosition.tag_id,
