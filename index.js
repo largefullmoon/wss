@@ -123,10 +123,15 @@ async function getAllTagData() {
             .then(async (position_rows) => {
               if (position_rows.length > 0) {
                 position_rows.forEach(async (position_row) => {
-                  position_data = position_row
+                  position_data = {
+                    x: position_row.x,
+                    y: position_row.y,
+                    z: position_row.z
+                  }
                 })
               }
             })
+          console.log(position_data, "position_data")
           if (tag) {
             // Tag exists, update it
             tag.time = row.time._nanoISO
