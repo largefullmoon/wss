@@ -53,7 +53,6 @@ wss.on('connection', (ws, req) => {
 
     ws.on('close', () => {
         clearInterval(interval); // Clear interval when the client disconnects
-        channels[channel] = channels[channel].filter((client) => client !== ws);
     });
     clients.push(ws)
 });
