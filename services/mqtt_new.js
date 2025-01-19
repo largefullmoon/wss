@@ -180,8 +180,6 @@ class MqttHandler {
             .catch((err) => {
               console.error(`Error writing data to InfluxDB: ${err}`);
             });
-
-
         } else {
           var paramsPosition = MQTTPattern.exec(positionPattern, topic)
           if (paramsPosition) {
