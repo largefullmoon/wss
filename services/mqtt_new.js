@@ -86,10 +86,11 @@ class MqttHandler {
             console.error(`Error writing data to InfluxDB: ${err}`);
           });
         //Find Tagstatus
-        const tag = await TagStatus.findOne({ tag_id: paramsAngle.tag_id, zone_id: this.zone_id });
+        const tag = await TagStatus.findOne({ tag_id: paramsAngle.tag_id});
         if (tag) {
           // Tagstatus exists, update it
           tag.aoa = data
+          tag.zone_id = this.zone_id
           await tag.save();
         } else {
           // Tagstatus does not exist, create a new one
@@ -114,7 +115,7 @@ class MqttHandler {
           wscon.send(JSON.stringify(wsmessage).toString());
           if (!tag_ids.includes(paramsManuf.tag_id)) {
             tag_ids.push(paramsManuf.tag_id)
-            const tag = await TagStatus.findOne({ tag_id: paramsManuf.tag_id, zone_id: this.zone_id });
+            const tag = await TagStatus.findOne({ tag_id: paramsManuf.tag_id});
             let status = "good"
             if (data.vbatt < 3) {
               status = "warning"
@@ -128,6 +129,7 @@ class MqttHandler {
               tag.time = new Date();
               tag.status = status
               tag.is_new = false
+              tag.zone_id = this.zone_id
               await tag.save();
             } else {
               // Tag does not exist, create a new one
@@ -143,7 +145,7 @@ class MqttHandler {
             }
 
           } else {
-            const tag = await TagStatus.findOne({ tag_id: paramsManuf.tag_id, zone_id: this.zone_id });
+            const tag = await TagStatus.findOne({ tag_id: paramsManuf.tag_id});
             let status = "good"
             if (data.vbatt < 3) {
               status = "warning"
@@ -156,6 +158,7 @@ class MqttHandler {
               tag.manuf_data = data
               tag.time = new Date();
               tag.status = status
+              tag.zone_id = this.zone_id
               await tag.save();
             }
 
@@ -218,6 +221,7 @@ class MqttHandler {
             if (tag) {
               // Tagstatus exists, update it
               tag.position = data
+              tag.zone_id = this.zone_id
               await tag.save();
             } else {
               // Tagstatus does not exist, create a new one
