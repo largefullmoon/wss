@@ -104,7 +104,7 @@ async function getAllTagData() {
   const query = `
     SELECT LAST(ext_adc), *
       FROM "manuf_data"
-      GROUP BY "tag_id", "zone"
+      GROUP BY "tag_id"
     `;
 
   influx.query(query)
@@ -115,9 +115,8 @@ async function getAllTagData() {
           const queryPosition = `
             SELECT LAST(x), *
               FROM "position"
-              Where zone='` + row.zone + `'
-              and tag_id='`+ row.tag_id + `'
-              GROUP BY "tag_id", "zone"
+              Where tag_id='`+ row.tag_id + `'
+              GROUP BY "tag_id"
             `;
           let position_data = {}
           influx.query(queryPosition)
