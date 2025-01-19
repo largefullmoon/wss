@@ -5,7 +5,7 @@ var MQTTPattern = require("mqtt-pattern");
 const TagStatus = require('../models/TagStatus');
 const influx = new Influx.InfluxDB({
   host: "185.61.139.41",
-  database: "fama",
+  database: "prod",
 });
 
 async function outPut(topic, message) {
@@ -214,8 +214,8 @@ class MqttHandler {
               .catch((err) => {
                 console.error(`Error writing data to InfluxDB: ${err}`);
               });
-            //Find Tagstatus
-            const tag = await TagStatus.findOne({ tag_id: paramsPosition.tag_id, zone_id: this.zone_id });
+            // const tag = await TagStatus.findOne({ tag_id: paramsPosition.tag_id, zone_id: this.zone_id });
+            const tag = await TagStatus.findOne({ tag_id: paramsPosition.tag_id });
             if (tag) {
               // Tagstatus exists, update it
               tag.position = data

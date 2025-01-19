@@ -16,7 +16,7 @@ let checkingTags = []
 let checkingTagConditions = []
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
-    database: "fama",
+    database: "prod",
 });
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 9000 });
@@ -79,6 +79,7 @@ const runWebHook = async (webHook, data) => {
     }
     if (webHook.type == "dashboard_notification") {
         broadcastToClients({ ...data, message: webHook.message })
+        await Notification.create({ tag_id: data.tag_id, zone_id: data.zone_id, message: webHook.message, readUserIds: [] })
         await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
     }
     if (webHook.type == "webhook") {
@@ -112,6 +113,13 @@ const runWebHook = async (webHook, data) => {
                         case "asset_name":
                             if (asset) {
                                 postData[params[i].key] = asset.title;
+                            }
+                            break;
+                        case "last_position":
+                            const tag_id = data['tag_id']
+                            const positionData = await TagStatus.findOne({ tag_id: tag_id });
+                            if (positionData) {
+                                postData[params[i].key] = JSON.stringify(positionData);
                             }
                             break;
                         default:
@@ -150,6 +158,7 @@ const EventCount = require('../models/EventCount.js');
 const AssetEventCount = require('../models/AssetEventCount.js');
 const AssetPosition = require('../models/AssetPosition.js');
 const AssetStatus = require('../models/AssetStatus.js');
+const { default: Notification } = require('../models/Notification.js');
 // Create a Redis client
 const client = redis.createClient({
     host: '127.0.0.1',  // Redis server host (use localhost for local server)
@@ -581,7 +590,7 @@ async function checkTag(tag, type, period) {
                         if (isCheck) {
                             await TagStatus.findByIdAndUpdate(tag._id, {
                                 runConditions: tag.runConditions.filter((item) => item.toString() != condition._id.toString()),
-                            }, { new: true })
+                            })
                             const ongoingTarget = tag.ongoingEvents.filter((ongoingEvent) => {
                                 return ongoingEvent.condition_id == condition._id.toString()
                             })[0]
@@ -591,7 +600,7 @@ async function checkTag(tag, type, period) {
                                     ongoingEvents: [tag.ongoingEvents.filter((ongoingEvent) => {
                                         return ongoingEvent.condition_id == condition._id.toString()
                                     })],
-                                }, { new: true })
+                                })
                                 const data = {
                                     'tag_id': tag.tag_id,
                                     'zone_id': tag.zone_id,
@@ -624,7 +633,7 @@ async function checkTag(tag, type, period) {
                             previous_aoa: tag.aoa,
                             previous_manuf_data: tag.manuf_data,
                             previous_position: tag.position,
-                        }, { new: true })
+                        })
                         let color = ""
                         if (condition.severity == "info") {
                             color = '#006FEE'
@@ -642,7 +651,7 @@ async function checkTag(tag, type, period) {
                         } else {
                             await TagStatus.findByIdAndUpdate(tag._id, {
                                 runConditions: [...tag.runConditions, condition._id],
-                            }, { new: true })
+                            })
                         }
                         if (category == 'issue') {
                             const newEvent = new Event({
@@ -659,7 +668,7 @@ async function checkTag(tag, type, period) {
                             } else {
                                 await TagStatus.findByIdAndUpdate(tag._id, {
                                     ongoingEvents: [...tag.ongoingEvents, { condition_id: condition._id, event_id: result._id }],
-                                }, { new: true })
+                                })
                             }
                         } else {
                             const newEvent = new Event({
@@ -831,7 +840,7 @@ async function checkTag(tag, type, period) {
                     const result = await newEvent.save();
                     await TagStatus.findByIdAndUpdate(tag._id, {
                         ongoingEvents: [...tag.ongoingEvents, { condition_id: type, event_id: result._id }],
-                    }, { new: true })
+                    })
                 }
                 if (battery_status == "resolved") {
                     if (type == "battery_middle") {
@@ -847,7 +856,7 @@ async function checkTag(tag, type, period) {
                         const result = await newEvent.save();
                         await TagStatus.findByIdAndUpdate(tag._id, {
                             ongoingEvents: [...tag.ongoingEvents, { condition_id: type, event_id: result._id }],
-                        }, { new: true })
+                        })
                     }
                     const ongoingTarget = tag.ongoingEvents.filter((ongoingEvent) => {
                         return pre_battery_status.includes(ongoingEvent.condition_id)
@@ -858,7 +867,7 @@ async function checkTag(tag, type, period) {
                             ongoingEvents: [tag.ongoingEvents.filter((ongoingEvent) => {
                                 return ongoingEvent.condition_id == type
                             })],
-                        }, { new: true })
+                        })
                     }
                 }
             } else {
