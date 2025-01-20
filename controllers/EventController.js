@@ -84,12 +84,18 @@ const runWebHook = async (webHook, data) => {
     if (webHook.type == "webhook") {
         try {
             const isURLParams = webHook.isURLParams;
-            const params = webHook.params;
-            const urlParams = webHook.urlParams
+            let params = webHook?.params;
+            if(!params){
+                params = []
+            }
+            let urlParams = webHook?.urlParams;
+            if(!urlParams){
+                urlParams = []
+            }
             let postData = { 'conditions': data.conditions }
             const asset = await Asset.findOne({ tag: data['tag_id'] });
             let urlParamsData = { 'conditions': data.conditions }
-            for (let i = 0; i < urlParams.length; i++) {
+            for (let i = 0; i < urlParams?.length; i++) {
                 if (urlParams[i].type == "default") {
                     switch (urlParams[i].related) {
                         case "area_id":
@@ -132,7 +138,7 @@ const runWebHook = async (webHook, data) => {
                     urlParamsData[urlParams[i].key] = urlParams[i].value
                 }
             }
-            for (let i = 0; i < params.length; i++) {
+            for (let i = 0; i < params?.length; i++) {
                 if (params[i].type == "default") {
                     switch (params[i].related) {
                         case "url_params":
