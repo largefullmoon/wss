@@ -85,11 +85,11 @@ const runWebHook = async (webHook, data) => {
         try {
             const isURLParams = webHook.isURLParams;
             let params = webHook?.params;
-            if(!params){
+            if (!params) {
                 params = []
             }
             let urlParams = webHook?.urlParams;
-            if(!urlParams){
+            if (!urlParams) {
                 urlParams = []
             }
             let postData = { 'conditions': data.conditions }
@@ -611,152 +611,152 @@ async function checkTag(tag, type, period) {
         checkingTagConditions = [...checkingTagConditions, tag.tag_id + "_" + item.condition_id]
         const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
         console.log(flag, "flag")
-        if (condition.checkingType == type) {
-            let isTrue = true
-            if (condition.checkingType == "every-minute" && (period % checkingPeriod) == 0) {
-                isTrue = true
-            } else {
-                isTrue = false
-            }
-            if (condition.checkingType == "real-time") {
-                isTrue = true
-            }
-            if (isTrue) {
-                const string = condition.description
-                // let string = ""
-                // if (message != null && message != "") {
-                //     const preString = "`" + message + "`"
-                //     let params = {}
-                //     if (tag.aoa) {
-                //         params = { ...params, ...tag.aoa }
-                //     }
-                //     if (tag.manuf_data) {
-                //         params = { ...params, ...tag.manuf_data }
-                //     }
-                //     if (tag.position) {
-                //         params = { ...params, ...tag.position }
-                //     }
-                //     try {
-                //         string = new Function(`
-                //             const tag={id:'${tag?.tag_id}'};
-                //             const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
-                //             const param = ${JSON.stringify(params)};
-                //             return ${preString};
-                //         `)();
-                //     } catch (error) {
-                //         console.log(error)
-                //     }
-                // }
-                if (tag.runConditions) {
-                    const runConditions = tag.runConditions.map((item) => {
-                        return item.toString()
-                    })
-                    if (!flag && runConditions.includes(condition._id.toString()) && category == 'issue') {
-                        let isCheck = true
-                        if (isCheck) {
+        // if (condition.checkingType == type) {
+        let isTrue = true
+        if (condition.checkingType == "every-minute" && (period % condition.checkingPeriod) == 0) {
+            isTrue = true
+        } else {
+            isTrue = false
+        }
+        if (condition.checkingType == "real-time") {
+            isTrue = true
+        }
+        if (isTrue) {
+            const string = condition.description
+            // let string = ""
+            // if (message != null && message != "") {
+            //     const preString = "`" + message + "`"
+            //     let params = {}
+            //     if (tag.aoa) {
+            //         params = { ...params, ...tag.aoa }
+            //     }
+            //     if (tag.manuf_data) {
+            //         params = { ...params, ...tag.manuf_data }
+            //     }
+            //     if (tag.position) {
+            //         params = { ...params, ...tag.position }
+            //     }
+            //     try {
+            //         string = new Function(`
+            //             const tag={id:'${tag?.tag_id}'};
+            //             const zone={id:'${tag?.zone_id}',name:'${zone?.title}',description:'${zone?.description}'};
+            //             const param = ${JSON.stringify(params)};
+            //             return ${preString};
+            //         `)();
+            //     } catch (error) {
+            //         console.log(error)
+            //     }
+            // }
+            if (tag.runConditions) {
+                const runConditions = tag.runConditions.map((item) => {
+                    return item.toString()
+                })
+                if (!flag && runConditions.includes(condition._id.toString()) && category == 'issue') {
+                    let isCheck = true
+                    if (isCheck) {
+                        await TagStatus.findByIdAndUpdate(tag._id, {
+                            runConditions: tag.runConditions.filter((item) => item.toString() != condition._id.toString()),
+                        })
+                        const ongoingTarget = tag.ongoingEvents.filter((ongoingEvent) => {
+                            return ongoingEvent.condition_id == condition._id.toString()
+                        })[0]
+                        if (ongoingTarget) {
+                            await Event.findByIdAndUpdate(ongoingTarget.event_id, { battery_status: "resolved", color: "green" })
                             await TagStatus.findByIdAndUpdate(tag._id, {
-                                runConditions: tag.runConditions.filter((item) => item.toString() != condition._id.toString()),
+                                ongoingEvents: [tag.ongoingEvents.filter((ongoingEvent) => {
+                                    return ongoingEvent.condition_id == condition._id.toString()
+                                })],
                             })
-                            const ongoingTarget = tag.ongoingEvents.filter((ongoingEvent) => {
-                                return ongoingEvent.condition_id == condition._id.toString()
-                            })[0]
-                            if (ongoingTarget) {
-                                await Event.findByIdAndUpdate(ongoingTarget.event_id, { battery_status: "resolved", color: "green" })
-                                await TagStatus.findByIdAndUpdate(tag._id, {
-                                    ongoingEvents: [tag.ongoingEvents.filter((ongoingEvent) => {
-                                        return ongoingEvent.condition_id == condition._id.toString()
-                                    })],
-                                })
-                                const data = {
-                                    'tag_id': tag.tag_id,
-                                    'zone_id': tag.zone_id,
-                                }
-                                webHookData.push(data)
-                                fitConditions.push({ condition: item.condition_id, category: item.category_id.name, battery_status: "resolved" })
+                            const data = {
+                                'tag_id': tag.tag_id,
+                                'zone_id': tag.zone_id,
                             }
+                            webHookData.push(data)
+                            fitConditions.push({ condition: item.condition_id, category: item.category_id.name, battery_status: "resolved" })
                         }
                     }
                 }
-                if (flag) {
-                    const runConditions = tag.runConditions.map((item) => {
-                        return item.toString()
+            }
+            if (flag) {
+                const runConditions = tag.runConditions.map((item) => {
+                    return item.toString()
+                })
+                let isValid = false
+                if (tag[`previous_${condition.category}`]) {
+                    condition.conditions.forEach((param, index) => {
+                        if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
+                            isValid = true
+                        }
                     })
-                    let isValid = false
-                    if (tag[`previous_${condition.category}`]) {
-                        condition.conditions.forEach((param, index) => {
-                            if (tag[condition.category][param.param] != tag[`previous_${condition.category}`][param.param]) {
-                                isValid = true
-                            }
-                        })
+                } else {
+                    isValid = true
+                }
+                if (!runConditions.includes(condition._id.toString())) {
+                    isValid = true
+                }
+                if (isValid) {
+                    await TagStatus.findByIdAndUpdate(tag._id, {
+                        previous_aoa: tag.aoa,
+                        previous_manuf_data: tag.manuf_data,
+                        previous_position: tag.position,
+                    })
+                    let color = ""
+                    if (condition.severity == "info") {
+                        color = '#006FEE'
+                    }
+                    if (condition.severity == "warning") {
+                        color = '#F5A524'
+                    }
+                    if (condition.severity == "error") {
+                        color = '#F31260'
+                    }
+                    if (condition.severity == "critical") {
+                        color = 'red'
+                    }
+                    if (runConditions && runConditions.includes(condition._id.toString())) {
                     } else {
-                        isValid = true
-                    }
-                    if (!runConditions.includes(condition._id.toString())) {
-                        isValid = true
-                    }
-                    if (isValid) {
                         await TagStatus.findByIdAndUpdate(tag._id, {
-                            previous_aoa: tag.aoa,
-                            previous_manuf_data: tag.manuf_data,
-                            previous_position: tag.position,
+                            runConditions: [...tag.runConditions, condition._id],
                         })
-                        let color = ""
-                        if (condition.severity == "info") {
-                            color = '#006FEE'
-                        }
-                        if (condition.severity == "warning") {
-                            color = '#F5A524'
-                        }
-                        if (condition.severity == "error") {
-                            color = '#F31260'
-                        }
-                        if (condition.severity == "critical") {
-                            color = 'red'
-                        }
+                    }
+                    if (category == 'issue') {
+                        const newEvent = new Event({
+                            category: item.category_id.name,
+                            type: item.condition_id.name,
+                            object: tag.tag_id,
+                            zone: tag.zone_id,
+                            information: string,
+                            battery_status: "ongoing",
+                            color
+                        });
+                        const result = await newEvent.save();
                         if (runConditions && runConditions.includes(condition._id.toString())) {
                         } else {
                             await TagStatus.findByIdAndUpdate(tag._id, {
-                                runConditions: [...tag.runConditions, condition._id],
+                                ongoingEvents: [...tag.ongoingEvents, { condition_id: condition._id, event_id: result._id }],
                             })
                         }
-                        if (category == 'issue') {
-                            const newEvent = new Event({
-                                category: item.category_id.name,
-                                type: item.condition_id.name,
-                                object: tag.tag_id,
-                                zone: tag.zone_id,
-                                information: string,
-                                battery_status: "ongoing",
-                                color
-                            });
-                            const result = await newEvent.save();
-                            if (runConditions && runConditions.includes(condition._id.toString())) {
-                            } else {
-                                await TagStatus.findByIdAndUpdate(tag._id, {
-                                    ongoingEvents: [...tag.ongoingEvents, { condition_id: condition._id, event_id: result._id }],
-                                })
-                            }
-                        } else {
-                            const newEvent = new Event({
-                                category: item.category_id.name,
-                                type: item.condition_id.name,
-                                object: tag.tag_id,
-                                zone: tag.zone_id,
-                                information: string,
-                            });
-                            await newEvent.save();
-                        }
+                    } else {
+                        const newEvent = new Event({
+                            category: item.category_id.name,
+                            type: item.condition_id.name,
+                            object: tag.tag_id,
+                            zone: tag.zone_id,
+                            information: string,
+                        });
+                        await newEvent.save();
                     }
-                    const data = {
-                        'tag_id': tag.tag_id,
-                        'zone_id': tag.zone_id,
-                        'message': flag
-                    }
-                    webHookData.push(data)
-                    fitConditions.push({ condition: item.condition_id, category: item.category_id.name, battery_status: "ongoing" })
                 }
+                const data = {
+                    'tag_id': tag.tag_id,
+                    'zone_id': tag.zone_id,
+                    'message': flag
+                }
+                webHookData.push(data)
+                fitConditions.push({ condition: item.condition_id, category: item.category_id.name, battery_status: "ongoing" })
             }
         }
+        // }
         checkingTagConditions = checkingTagConditions.filter(item => item != tag.tag_id + "_" + item.condition_id)
     })
     const zoneDetail = await Zone.findById(tag.zone_id)
