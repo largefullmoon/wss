@@ -90,6 +90,9 @@ class MqttHandler {
         if (tag) {
           // Tagstatus exists, update it
           tag.aoa = data
+          if(tag.zone_id != this.zone_id) {
+            tag.is_new = true
+          }
           tag.zone_id = this.zone_id
           await tag.save();
         } else {
@@ -125,6 +128,9 @@ class MqttHandler {
             }
             if (tag) {
               // Tag exists, update it
+              if(tag.zone_id != this.zone_id) {
+                tag.is_new = true
+              }
               tag.manuf_data = data
               tag.time = new Date();
               tag.status = status
@@ -155,6 +161,9 @@ class MqttHandler {
             }
             if (tag) {
               // Tag exists, update it
+              if(tag.zone_id != this.zone_id) {
+                tag.is_new = true
+              }
               tag.manuf_data = data
               tag.time = new Date();
               tag.status = status
@@ -221,6 +230,9 @@ class MqttHandler {
             if (tag) {
               // Tagstatus exists, update it
               tag.position = data
+              if(tag.zone_id != this.zone_id) {
+                tag.is_new = true
+              }
               tag.zone_id = this.zone_id
               await tag.save();
             } else {

@@ -891,7 +891,6 @@ async function checkTag(tag, type, period) {
         }
     }
     await actions.forEach(async (action) => {
-        console.log("-----------------------")
         const result = await checkActionWithConditions(action, fitConditions)
         if (result) {
             await runAction(action, webHookData, fitConditions)
