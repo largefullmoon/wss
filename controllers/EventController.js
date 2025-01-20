@@ -61,7 +61,7 @@ const runWebHook = async (webHook, data) => {
         const text = ""
         const mailOptions = {
             from: 'alerts@cotrax.io',
-            to: webhookUrl.email,
+            to: webHook.email,
             subject: 'Alert from Cotrax',
             text: text,
             html: `<b>${text}</b>`,
@@ -600,9 +600,11 @@ async function checkTag(tag, type, period) {
         if (checkingTagConditions.includes(tag.tag_id + "_" + item.condition_id)) return
         const condition = item.condition_id
         const category = item.category_id.name
+        console.log(condition, "condition", tag, "tag")
         if (!condition.selectedZones.includes(tag.zone_id.toString())) return
         checkingTagConditions = [...checkingTagConditions, tag.tag_id + "_" + item.condition_id]
         const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
+        console.log(flag, "flag")
         if (condition.checkingType == type) {
             let isTrue = true
             if (condition.checkingType == "every-minute" && (period % checkingPeriod) == 0) {

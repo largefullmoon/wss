@@ -129,7 +129,6 @@ async function getAllTagData() {
                   z: position_row.z
                 }
               }
-              console.log(position_data, "position_data")
               if (tag) {
                 // Tag exists, update it
                 tag.time = row.time._nanoISO

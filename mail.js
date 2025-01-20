@@ -1,11 +1,11 @@
 const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
-    host: '185.62.188.4',
+    host: 'smtp.gmail.com',
     port: 465,
     secure: true,
     auth: {
-        user: 'test@tonytest.top',
-        pass: '(Y$f9}[,0)dy',
+        user: 'alerts@cotrax.io',
+        pass: 'hadgyv-Kigzuj-1betci',
     },
     tls: {
         rejectUnauthorized: false
@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
 
 // Email options
 const mailOptions = {
-    from: 'test@tonytest.top',
+    from: 'alerts@cotrax.io',
     to: 'largefullmoon@gmail.com',
     subject: 'Hello from Node.js!',
     text: 'Hello, this is a test email.',
