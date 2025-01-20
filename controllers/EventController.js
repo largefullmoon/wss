@@ -83,6 +83,7 @@ const runWebHook = async (webHook, data) => {
     }
     if (webHook.type == "webhook") {
         try {
+            const URLParams = webHook.URLParams;
             const params = webHook.params;
             let postData = { 'conditions': data.conditions }
             const asset = await Asset.findOne({ tag: data['tag_id'] });
@@ -130,11 +131,16 @@ const runWebHook = async (webHook, data) => {
                 }
             }
             console.log(postData, "postData")
-            const response = await axios.post(webHook.webhookUrl, postData, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            if (URLParams) {
+                const params = new URLSearchParams(postData).toString();
+                const response = await axios.get(`${webHook.webhookUrl}?${params}`);
+            } else {
+                const response = await axios.post(webHook.webhookUrl, postData, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
             await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
         } catch (error) {
             await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
