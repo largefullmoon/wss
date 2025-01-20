@@ -21,12 +21,12 @@ const influx = new Influx.InfluxDB({
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 9000 });
 const transporter = nodemailer.createTransport({
-    host: '185.62.188.4',
+    host: 'smtp.gmail.com',
     port: 465,
     secure: true,
     auth: {
-        user: 'test@tonytest.top',
-        pass: '(Y$f9}[,0)dy',
+        user: 'alerts@cotrax.io',
+        pass: 'hadgyv-Kigzuj-1betci',
     },
     tls: {
         rejectUnauthorized: false
@@ -60,7 +60,7 @@ const runWebHook = async (webHook, data) => {
     if (webHook.type == "email") {
         const text = ""
         const mailOptions = {
-            from: 'test@tonytest.top',
+            from: 'alerts@cotrax.io',
             to: webhookUrl.email,
             subject: 'Alert from Cotrax',
             text: text,
@@ -83,13 +83,61 @@ const runWebHook = async (webHook, data) => {
     }
     if (webHook.type == "webhook") {
         try {
-            const URLParams = webHook.URLParams;
+            const isURLParams = webHook.isURLParams;
             const params = webHook.params;
+            const urlParams = webHook.urlParams
             let postData = { 'conditions': data.conditions }
             const asset = await Asset.findOne({ tag: data['tag_id'] });
+            let urlParamsData = { 'conditions': data.conditions }
+            for (let i = 0; i < urlParams.length; i++) {
+                if (urlParams[i].type == "default") {
+                    switch (urlParams[i].related) {
+                        case "area_id":
+                            urlParamsData[urlParams[i].key] = data[urlParams[i].related];
+                            break;
+                        case "area_name":
+                            urlParamsData[urlParams[i].key] = data[urlParams[i].related];
+                            break;
+                        case "tag_id":
+                            urlParamsData[urlParams[i].key] = data[urlParams[i].related];
+                            break;
+                        case "zone_id":
+                            urlParamsData[urlParams[i].key] = data[urlParams[i].related];
+                            break;
+                        case "zone_name":
+                            const zone = await Zone.findById(data['zone_id']);
+                            urlParamsData[urlParams[i].key] = zone.name;
+                        case "asset_id":
+                            if (asset) {
+                                urlParamsData[urlParams[i].key] = asset._id;
+                            }
+                            break;
+                        case "asset_name":
+                            if (asset) {
+                                urlParamsData[urlParams[i].key] = asset.title;
+                            }
+                            break;
+                        case "last_position":
+                            const tag_id = data['tag_id']
+                            const positionData = await TagStatus.findOne({ tag_id: tag_id });
+                            if (positionData) {
+                                urlParamsData[urlParams[i].key] = JSON.stringify(positionData);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                if (urlParams[i].type == "custom") {
+                    urlParamsData[urlParams[i].key] = urlParams[i].value
+                }
+            }
             for (let i = 0; i < params.length; i++) {
                 if (params[i].type == "default") {
                     switch (params[i].related) {
+                        case "url_params":
+                            postData[params[i].key] = JSON.stringify(urlParamsData);
+                            break;
                         case "area_id":
                             postData[params[i].key] = data[params[i].related];
                             break;
@@ -130,8 +178,8 @@ const runWebHook = async (webHook, data) => {
                     postData[params[i].key] = params[i].value
                 }
             }
-            console.log(postData, "postData")
-            if (URLParams) {
+
+            if (isURLParams) {
                 const params = new URLSearchParams(postData).toString();
                 // const response = await axios.post(`${webHook.webhookUrl}?${params}`, postData, {
                 //     headers: {
