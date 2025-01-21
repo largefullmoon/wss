@@ -88,7 +88,7 @@ const runWebHook = async (webHook, data) => {
                         break;
                     case "zone_name":
                         const zone = await Zone.findById(data['zone_id']);
-                        value = zone.name;
+                        value = zone.title;
                     case "asset_id":
                         if (asset) {
                             value = asset._id;
@@ -170,7 +170,7 @@ const runWebHook = async (webHook, data) => {
                             break;
                         case "zone_name":
                             const zone = await Zone.findById(data['zone_id']);
-                            urlParamsData[urlParams[i].key] = zone.name;
+                            urlParamsData[urlParams[i].key] = zone.title;
                             break;
                         case "asset_id":
                             if (asset) {
