@@ -11,7 +11,8 @@ const WebHookSchema = new mongoose.Schema({
     message: { type: String, default: null },
     params: [{ type: Object, default: null }],
     urlParams: [{ type: Object, default: null }],
-    isURLParams: { type: Boolean, default: false }
+    isURLParams: { type: Boolean, default: false },
+    subject: { type: String, default: null },
 });
 
 module.exports = mongoose.model('webHook', WebHookSchema);

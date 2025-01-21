@@ -56,15 +56,70 @@ wss.on('connection', (ws, req) => {
     });
     clients.push(ws)
 });
+const defaultURLParams = [
+    { name: "Area Id", key: "area_id" },
+    { name: "Area Name", key: "area_name" },
+    { name: "Tag Id", key: "tag_id" },
+    { name: "Zone Id", key: "zone_id" },
+    { name: "Zone Name", key: "zone_name" },
+    { name: "Asset Id", key: "asset_id" },
+    { name: "Asset Name", key: "asset_name" },
+    { name: "Last Position", key: "last_position" }
+]
 const runWebHook = async (webHook, data) => {
     if (webHook.type == "email") {
-        const text = ""
+        let subject = webHook.subject
+
+        const asset = await Asset.findOne({ tag: data['tag_id'] });
+        for (let i = 0; i < defaultURLParams?.length; i++) {
+            if (subject.indexOf(`@[${defaultURLParams[i].name}](${defaultURLParams[i].key})`) != -1) {
+                let value = ""
+                switch (defaultURLParams[i].key) {
+                    case "area_id":
+                        value = data[defaultURLParams[i].key];
+                        break;
+                    case "area_name":
+                        value = data[defaultURLParams[i].key];
+                        break;
+                    case "tag_id":
+                        value = data[defaultURLParams[i].key];
+                        break;
+                    case "zone_id":
+                        value = data[defaultURLParams[i].key];
+                        break;
+                    case "zone_name":
+                        const zone = await Zone.findById(data['zone_id']);
+                        value = zone.name;
+                    case "asset_id":
+                        if (asset) {
+                            value = asset._id;
+                        }
+                        break;
+                    case "asset_name":
+                        if (asset) {
+                            value = asset.title;
+                        }
+                        break;
+                    case "last_position":
+                        const tag_id = data['tag_id']
+                        const positionData = await TagStatus.findOne({ tag_id: tag_id });
+                        if (positionData) {
+                            value = JSON.stringify(positionData);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                const regex = new RegExp(`@\\[${defaultURLParams[i].name}\\]\\(${defaultURLParams[i].key}\\)`, "g");
+                subject = subject.replace(regex, value);
+            }
+        }
         const mailOptions = {
             from: 'alerts@cotrax.io',
             to: webHook.email,
-            subject: 'Alert from Cotrax',
-            text: text,
-            html: `<b>${text}</b>`,
+            subject: subject,
+            text: webHook.description,
+            html: `<b>${webHook.description}</b>`,
         };
         transporter.sendMail(mailOptions, async (error, info) => {
             if (error) {
@@ -81,11 +136,8 @@ const runWebHook = async (webHook, data) => {
     }
     if (webHook.type == "webhook") {
         try {
-            console.log(webHook, "webHook")
             const isURLParams = webHook.isURLParams;
-            console.log(webHook.params, " webHook.params")
             let params = webHook.params;
-            console.log(params, "params")
             if (!params) {
                 params = []
             }
@@ -186,10 +238,6 @@ const runWebHook = async (webHook, data) => {
                     postData[params[i].key] = params[i].value
                 }
             }
-            console.log(params)
-            console.log(isURLParams)
-            console.log(postData)
-            console.log(webHook.webhookUrl)
             if (isURLParams) {
                 const ps = new URLSearchParams(postData).toString();
                 const response = await axios.get(`${webHook.webhookUrl}?${ps}`);
