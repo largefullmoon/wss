@@ -187,15 +187,8 @@ const runWebHook = async (webHook, data) => {
             }
             if (isURLParams) {
                 const params = new URLSearchParams(postData).toString();
-                // const response = await axios.post(`${webHook.webhookUrl}?${params}`, postData, {
-                //     headers: {
-                //         'Content-Type': 'application/json'
-                //     }
-                // });
-                console.log(`${webHook.webhookUrl}?${params}`)
                 const response = await axios.get(`${webHook.webhookUrl}?${params}`);
             } else {
-                console.log(webHook.webhookUrl, postData)
                 const response = await axios.post(webHook.webhookUrl, postData, {
                     headers: {
                         'Content-Type': 'application/json'
