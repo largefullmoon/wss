@@ -83,7 +83,7 @@ const runWebHook = async (webHook, data) => {
         try {
             const isURLParams = webHook.isURLParams;
             let params = webHook?.params;
-            console.log(webHook, "webHook")
+            console.log(params, "params")
             if (!params) {
                 params = []
             }
@@ -189,8 +189,8 @@ const runWebHook = async (webHook, data) => {
             console.log(postData)
             console.log(webHook.webhookUrl)
             if (isURLParams) {
-                const params = new URLSearchParams(postData).toString();
-                const response = await axios.get(`${webHook.webhookUrl}?${params}`);
+                const ps = new URLSearchParams(postData).toString();
+                const response = await axios.get(`${webHook.webhookUrl}?${ps}`);
             } else {
                 const response = await axios.post(webHook.webhookUrl, postData, {
                     headers: {
