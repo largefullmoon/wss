@@ -68,7 +68,6 @@ const defaultURLParams = [
 ]
 const runWebHook = async (webHook, data) => {
     if (webHook.type == "email") {
-        console.log(webHook, "webHook")
         let subject = webHook.subject
         const asset = await Asset.findOne({ tag: data['tag_id'] });
         for (let i = 0; i < defaultURLParams?.length; i++) {
@@ -114,8 +113,8 @@ const runWebHook = async (webHook, data) => {
                 subject = subject.replace(regex, value);
             }
         }
+        console.log(data, "data")
         webHook.emails.forEach((email) => {
-            console.log("sent email to ", email)
             const mailOptions = {
                 from: 'alerts@cotrax.io',
                 to: email,
@@ -125,8 +124,11 @@ const runWebHook = async (webHook, data) => {
             };
             transporter.sendMail(mailOptions, async (error, info) => {
                 if (error) {
+                    console.log("error in sending email", email)
+                    console.log(error)
                     await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
                 } else {
+                    console.log("sent email to ", email)
                     await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
                 }
             })
