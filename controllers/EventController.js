@@ -183,6 +183,7 @@ const runWebHook = async (webHook, data) => {
                     postData[params[i].key] = params[i].value
                 }
             }
+            console.log(params)
             console.log(isURLParams)
             console.log(postData)
             console.log(webHook.webhookUrl)
