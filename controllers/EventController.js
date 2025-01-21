@@ -58,7 +58,6 @@ wss.on('connection', (ws, req) => {
 });
 const runWebHook = async (webHook, data) => {
     if (webHook.type == "email") {
-        console.log(webHook.email, "email")
         const text = ""
         const mailOptions = {
             from: 'alerts@cotrax.io',
@@ -70,10 +69,8 @@ const runWebHook = async (webHook, data) => {
         transporter.sendMail(mailOptions, async (error, info) => {
             if (error) {
                 await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
-                console.log('Error occurred:', error);
             } else {
                 await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
-                console.log('Email sent:', text);
             }
         });
     }
@@ -601,11 +598,9 @@ async function checkTag(tag, type, period) {
         if (checkingTagConditions.includes(tag.tag_id + "_" + item.condition_id)) return
         const condition = item.condition_id
         const category = item.category_id.name
-        console.log(condition, "condition", tag, "tag")
         if (!condition.selectedZones.includes(tag.zone_id.toString())) return
         checkingTagConditions = [...checkingTagConditions, tag.tag_id + "_" + item.condition_id]
         const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
-        console.log(flag, "flag")
         // if (condition.checkingType == type) {
         let isTrue = true
         if (condition.checkingType == "every-minute" && (period % condition.checkingPeriod) == 0) {
