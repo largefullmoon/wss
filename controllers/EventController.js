@@ -82,7 +82,7 @@ const runWebHook = async (webHook, data) => {
     if (webHook.type == "webhook") {
         try {
             const isURLParams = webHook.isURLParams;
-            let params = webHook?.params;
+            let params = webHook['params'];
             console.log(params, "params")
             if (!params) {
                 params = []
