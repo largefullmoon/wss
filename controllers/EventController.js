@@ -115,6 +115,7 @@ const runWebHook = async (webHook, data) => {
             }
         }
         webHook.emails.forEach((email) => {
+            console.log("sent email to ", email)
             const mailOptions = {
                 from: 'alerts@cotrax.io',
                 to: email,
