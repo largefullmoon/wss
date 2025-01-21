@@ -639,6 +639,7 @@ const runAction = async (action, webHookData, fitConditions = []) => {
                 'zone_id': webHookData[0].zone_id,
                 'conditions': conditions
             }
+            console.log(webhook, "webhook")
             await runWebHook(webhook, data)
         })
     }, 500);

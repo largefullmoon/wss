@@ -204,7 +204,6 @@ class MqttHandler {
               'location': paramsPosition.location,
               "type": "position_data"
             }
-            console.log(wsmessage)
             wscon.send(JSON.stringify(wsmessage).toString());
             influx
               .writePoints([
