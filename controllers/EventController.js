@@ -599,7 +599,7 @@ const runAction = async (action, webHookData, fitConditions = []) => {
         if (fitConditions.length > 0) {
             const fitCondition = fitConditions.filter((c) => c.condition._id.toString() == condition._id.toString())
             if (fitCondition) {
-                battery_status = fitCondition[0]['battery_status']
+                battery_status = fitCondition['battery_status']
             }
         }
         let conditionString = ''
