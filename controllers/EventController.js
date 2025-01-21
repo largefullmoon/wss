@@ -903,7 +903,7 @@ async function checkTag(tag, type, period) {
     }
     if (tag.manuf_data) {
         const zone = await Zone.findById(tag.zone_id)
-        let middle_standard = 3.0
+        let middle_standard = 2.99
         let low_standard = 2.3
         const category = "issue";
         let type = ""
