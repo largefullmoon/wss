@@ -67,11 +67,11 @@ const runWebHook = async (webHook, data) => {
             html: `<b>${text}</b>`,
         };
         transporter.sendMail(mailOptions, async (error, info) => {
-            if (error) {
-                await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
-            } else {
-                await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
-            }
+            // if (error) {
+            //     await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
+            // } else {
+            //     await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
+            // }
         });
     }
     if (webHook.type == "dashboard_notification") {
