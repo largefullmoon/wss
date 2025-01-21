@@ -111,6 +111,7 @@ const runWebHook = async (webHook, data) => {
                         case "zone_name":
                             const zone = await Zone.findById(data['zone_id']);
                             urlParamsData[urlParams[i].key] = zone.name;
+                            break;
                         case "asset_id":
                             if (asset) {
                                 urlParamsData[urlParams[i].key] = asset._id;
@@ -192,9 +193,9 @@ const runWebHook = async (webHook, data) => {
                     }
                 });
             }
-            await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
+            // await WebHookModel.updateOne({ _id: webHook._id.toString() }, { sentcount: webHook.sentcount + 1 })
         } catch (error) {
-            await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
+            // await WebHookModel.updateOne({ _id: webHook._id.toString() }, { failcount: webHook.failcount + 1 })
             console.error('Error sending POST request:', error.message);
         }
     }
