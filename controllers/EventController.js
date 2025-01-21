@@ -26,7 +26,7 @@ const transporter = nodemailer.createTransport({
     secure: true,
     auth: {
         user: 'alerts@cotrax.io',
-        pass: 'hadgyv-Kigzuj-1betci',
+        pass: 'gbuv hcjk eudg amho',
     },
     tls: {
         rejectUnauthorized: false
@@ -58,6 +58,7 @@ wss.on('connection', (ws, req) => {
 });
 const runWebHook = async (webHook, data) => {
     if (webHook.type == "email") {
+        console.log(webHook.email, "email")
         const text = ""
         const mailOptions = {
             from: 'alerts@cotrax.io',
@@ -184,7 +185,6 @@ const runWebHook = async (webHook, data) => {
                     postData[params[i].key] = params[i].value
                 }
             }
-
             if (isURLParams) {
                 const params = new URLSearchParams(postData).toString();
                 // const response = await axios.post(`${webHook.webhookUrl}?${params}`, postData, {
@@ -192,8 +192,10 @@ const runWebHook = async (webHook, data) => {
                 //         'Content-Type': 'application/json'
                 //     }
                 // });
+                console.log(`${webHook.webhookUrl}?${params}`)
                 const response = await axios.get(`${webHook.webhookUrl}?${params}`);
             } else {
+                console.log(webHook.webhookUrl, postData)
                 const response = await axios.post(webHook.webhookUrl, postData, {
                     headers: {
                         'Content-Type': 'application/json'
