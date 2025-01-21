@@ -57,149 +57,150 @@ wss.on('connection', (ws, req) => {
     clients.push(ws)
 });
 const runWebHook = async (webHook, data) => {
-    if (webHook.type == "email") {
-        const text = ""
-        const mailOptions = {
-            from: 'alerts@cotrax.io',
-            to: webHook.email,
-            subject: 'Alert from Cotrax',
-            text: text,
-            html: `<b>${text}</b>`,
-        };
-        transporter.sendMail(mailOptions, async (error, info) => {
-            // if (error) {
-            //     await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
-            // } else {
-            //     await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
-            // }
-        });
-    }
-    if (webHook.type == "dashboard_notification") {
-        broadcastToClients({ ...data, message: webHook.message })
-        await Notification.create({ tag_id: data.tag_id, zone_id: data.zone_id, message: webHook.message, readUserIds: [] })
-        await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
-    }
-    if (webHook.type == "webhook") {
-        try {
-            const isURLParams = webHook.isURLParams;
-            let params = webHook?.params;
-            if (!params) {
-                params = []
-            }
-            let urlParams = webHook?.urlParams;
-            if (!urlParams) {
-                urlParams = []
-            }
-            let postData = { 'conditions': data.conditions }
-            const asset = await Asset.findOne({ tag: data['tag_id'] });
-            // let urlParamsData = { 'conditions': data.conditions }
-            // for (let i = 0; i < urlParams?.length; i++) {
-            //     if (urlParams[i].type == "default") {
-            //         switch (urlParams[i].related) {
-            //             case "area_id":
-            //                 urlParamsData[urlParams[i].key] = data[urlParams[i].related];
-            //                 break;
-            //             case "area_name":
-            //                 urlParamsData[urlParams[i].key] = data[urlParams[i].related];
-            //                 break;
-            //             case "tag_id":
-            //                 urlParamsData[urlParams[i].key] = data[urlParams[i].related];
-            //                 break;
-            //             case "zone_id":
-            //                 urlParamsData[urlParams[i].key] = data[urlParams[i].related];
-            //                 break;
-            //             case "zone_name":
-            //                 const zone = await Zone.findById(data['zone_id']);
-            //                 urlParamsData[urlParams[i].key] = zone.name;
-            //                 break;
-            //             case "asset_id":
-            //                 if (asset) {
-            //                     urlParamsData[urlParams[i].key] = asset._id;
-            //                 }
-            //                 break;
-            //             case "asset_name":
-            //                 if (asset) {
-            //                     urlParamsData[urlParams[i].key] = asset.title;
-            //                 }
-            //                 break;
-            //             case "last_position":
-            //                 const tag_id = data['tag_id']
-            //                 const positionData = await TagStatus.findOne({ tag_id: tag_id });
-            //                 if (positionData) {
-            //                     urlParamsData[urlParams[i].key] = JSON.stringify(positionData);
-            //                 }
-            //                 break;
-            //             default:
-            //                 break;
-            //         }
-            //     }
-            //     if (urlParams[i].type == "custom") {
-            //         urlParamsData[urlParams[i].key] = urlParams[i].value
-            //     }
-            // }
-            for (let i = 0; i < params?.length; i++) {
-                if (params[i].type == "default") {
-                    switch (params[i].related) {
-                        // case "url_params":
-                        //     postData[params[i].key] = JSON.stringify(urlParamsData);
-                        //     break;
-                        case "area_id":
-                            postData[params[i].key] = data[params[i].related];
-                            break;
-                        case "area_name":
-                            postData[params[i].key] = data[params[i].related];
-                            break;
-                        case "tag_id":
-                            postData[params[i].key] = data[params[i].related];
-                            break;
-                        case "zone_id":
-                            postData[params[i].key] = data[params[i].related];
-                            break;
-                        case "zone_name":
-                            // const zone = await Zone.findById(data['zone_id']);
-                            // postData[params[i].key] = zone.name;
-                        case "asset_id":
-                            if (asset) {
-                                postData[params[i].key] = asset._id;
-                            }
-                            break;
-                        case "asset_name":
-                            if (asset) {
-                                postData[params[i].key] = asset.title;
-                            }
-                            break;
-                        case "last_position":
-                            const tag_id = data['tag_id']
-                            const positionData = await TagStatus.findOne({ tag_id: tag_id });
-                            if (positionData) {
-                                postData[params[i].key] = JSON.stringify(positionData);
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                if (params[i].type == "custom") {
-                    postData[params[i].key] = params[i].value
-                }
-            }
-            console.log(webHook.webhookUrl)
-            if (isURLParams) {
-                const params = new URLSearchParams(postData).toString();
-                const response = await axios.get(`${webHook.webhookUrl}?${params}`);
-            } else {
-                const response = await axios.post(webHook.webhookUrl, postData, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-            }
-            // await WebHookModel.updateOne({ _id: webHook._id.toString() }, { sentcount: webHook.sentcount + 1 })
-        } catch (error) {
-            // await WebHookModel.updateOne({ _id: webHook._id.toString() }, { failcount: webHook.failcount + 1 })
-            console.error('Error sending POST request:', error.message);
-        }
-    }
+    console.log("run webhook")
+    // if (webHook.type == "email") {
+    //     const text = ""
+    //     const mailOptions = {
+    //         from: 'alerts@cotrax.io',
+    //         to: webHook.email,
+    //         subject: 'Alert from Cotrax',
+    //         text: text,
+    //         html: `<b>${text}</b>`,
+    //     };
+    //     transporter.sendMail(mailOptions, async (error, info) => {
+    //         // if (error) {
+    //         //     await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
+    //         // } else {
+    //         //     await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
+    //         // }
+    //     });
+    // }
+    // if (webHook.type == "dashboard_notification") {
+    //     // broadcastToClients({ ...data, message: webHook.message })
+    //     // await Notification.create({ tag_id: data.tag_id, zone_id: data.zone_id, message: webHook.message, readUserIds: [] })
+    //     // await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
+    // }
+    // if (webHook.type == "webhook") {
+    //     try {
+    //         const isURLParams = webHook.isURLParams;
+    //         let params = webHook?.params;
+    //         if (!params) {
+    //             params = []
+    //         }
+    //         let urlParams = webHook?.urlParams;
+    //         if (!urlParams) {
+    //             urlParams = []
+    //         }
+    //         let postData = { 'conditions': data.conditions }
+    //         const asset = await Asset.findOne({ tag: data['tag_id'] });
+    //         // let urlParamsData = { 'conditions': data.conditions }
+    //         // for (let i = 0; i < urlParams?.length; i++) {
+    //         //     if (urlParams[i].type == "default") {
+    //         //         switch (urlParams[i].related) {
+    //         //             case "area_id":
+    //         //                 urlParamsData[urlParams[i].key] = data[urlParams[i].related];
+    //         //                 break;
+    //         //             case "area_name":
+    //         //                 urlParamsData[urlParams[i].key] = data[urlParams[i].related];
+    //         //                 break;
+    //         //             case "tag_id":
+    //         //                 urlParamsData[urlParams[i].key] = data[urlParams[i].related];
+    //         //                 break;
+    //         //             case "zone_id":
+    //         //                 urlParamsData[urlParams[i].key] = data[urlParams[i].related];
+    //         //                 break;
+    //         //             case "zone_name":
+    //         //                 const zone = await Zone.findById(data['zone_id']);
+    //         //                 urlParamsData[urlParams[i].key] = zone.name;
+    //         //                 break;
+    //         //             case "asset_id":
+    //         //                 if (asset) {
+    //         //                     urlParamsData[urlParams[i].key] = asset._id;
+    //         //                 }
+    //         //                 break;
+    //         //             case "asset_name":
+    //         //                 if (asset) {
+    //         //                     urlParamsData[urlParams[i].key] = asset.title;
+    //         //                 }
+    //         //                 break;
+    //         //             case "last_position":
+    //         //                 const tag_id = data['tag_id']
+    //         //                 const positionData = await TagStatus.findOne({ tag_id: tag_id });
+    //         //                 if (positionData) {
+    //         //                     urlParamsData[urlParams[i].key] = JSON.stringify(positionData);
+    //         //                 }
+    //         //                 break;
+    //         //             default:
+    //         //                 break;
+    //         //         }
+    //         //     }
+    //         //     if (urlParams[i].type == "custom") {
+    //         //         urlParamsData[urlParams[i].key] = urlParams[i].value
+    //         //     }
+    //         // }
+    //         for (let i = 0; i < params?.length; i++) {
+    //             if (params[i].type == "default") {
+    //                 switch (params[i].related) {
+    //                     // case "url_params":
+    //                     //     postData[params[i].key] = JSON.stringify(urlParamsData);
+    //                     //     break;
+    //                     case "area_id":
+    //                         postData[params[i].key] = data[params[i].related];
+    //                         break;
+    //                     case "area_name":
+    //                         postData[params[i].key] = data[params[i].related];
+    //                         break;
+    //                     case "tag_id":
+    //                         postData[params[i].key] = data[params[i].related];
+    //                         break;
+    //                     case "zone_id":
+    //                         postData[params[i].key] = data[params[i].related];
+    //                         break;
+    //                     case "zone_name":
+    //                         // const zone = await Zone.findById(data['zone_id']);
+    //                         // postData[params[i].key] = zone.name;
+    //                     case "asset_id":
+    //                         if (asset) {
+    //                             postData[params[i].key] = asset._id;
+    //                         }
+    //                         break;
+    //                     case "asset_name":
+    //                         if (asset) {
+    //                             postData[params[i].key] = asset.title;
+    //                         }
+    //                         break;
+    //                     case "last_position":
+    //                         const tag_id = data['tag_id']
+    //                         const positionData = await TagStatus.findOne({ tag_id: tag_id });
+    //                         if (positionData) {
+    //                             postData[params[i].key] = JSON.stringify(positionData);
+    //                         }
+    //                         break;
+    //                     default:
+    //                         break;
+    //                 }
+    //             }
+    //             if (params[i].type == "custom") {
+    //                 postData[params[i].key] = params[i].value
+    //             }
+    //         }
+    //         console.log(webHook.webhookUrl)
+    //         if (isURLParams) {
+    //             const params = new URLSearchParams(postData).toString();
+    //             const response = await axios.get(`${webHook.webhookUrl}?${params}`);
+    //         } else {
+    //             const response = await axios.post(webHook.webhookUrl, postData, {
+    //                 headers: {
+    //                     'Content-Type': 'application/json'
+    //                 }
+    //             });
+    //         }
+    //         // await WebHookModel.updateOne({ _id: webHook._id.toString() }, { sentcount: webHook.sentcount + 1 })
+    //     } catch (error) {
+    //         // await WebHookModel.updateOne({ _id: webHook._id.toString() }, { failcount: webHook.failcount + 1 })
+    //         console.error('Error sending POST request:', error.message);
+    //     }
+    // }
 }
 const broadcastToClients = async (data) => {
     clients.forEach((client) => {
