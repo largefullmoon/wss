@@ -68,8 +68,8 @@ const defaultURLParams = [
 ]
 const runWebHook = async (webHook, data) => {
     if (webHook.type == "email") {
+        console.log(webHook, "webHook")
         let subject = webHook.subject
-
         const asset = await Asset.findOne({ tag: data['tag_id'] });
         for (let i = 0; i < defaultURLParams?.length; i++) {
             if (subject.indexOf(`@[${defaultURLParams[i].name}](${defaultURLParams[i].key})`) != -1) {
