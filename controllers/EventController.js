@@ -114,19 +114,21 @@ const runWebHook = async (webHook, data) => {
                 subject = subject.replace(regex, value);
             }
         }
-        const mailOptions = {
-            from: 'alerts@cotrax.io',
-            to: webHook.email,
-            subject: subject,
-            text: webHook.description,
-            html: `<b>${webHook.description}</b>`,
-        };
-        transporter.sendMail(mailOptions, async (error, info) => {
-            if (error) {
-                await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
-            } else {
-                await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
-            }
+        webHook.emails.forEach((email) => {
+            const mailOptions = {
+                from: 'alerts@cotrax.io',
+                to: email,
+                subject: subject,
+                text: webHook.description,
+                html: `<b>${webHook.description}</b>`,
+            };
+            transporter.sendMail(mailOptions, async (error, info) => {
+                if (error) {
+                    await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
+                } else {
+                    await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
+                }
+            })
         });
     }
     if (webHook.type == "dashboard_notification") {
