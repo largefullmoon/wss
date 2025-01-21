@@ -440,6 +440,9 @@ async function checkEvent(event, zone_id, areas, ws) {
                     const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
                     actions.forEach(action => {
                         if (action.locationcondition_id) {
+                            if (action.count > 0 && action.executionType == "once") {
+                                return false
+                            }
                             if (action.locationcondition_id.name == 'tag_entered_area') {
                                 runAction(action, [data])
                             }
@@ -1003,12 +1006,22 @@ async function checkTag(tag, type, period) {
             fitConditions.push({ condition: condition_id, category: "issue", battery_status: battery_status })
         }
     }
+    const globalActions = await Action.find({ status: 1, global: true })
     await actions.forEach(async (action) => {
         const result = await checkActionWithConditions(action, fitConditions)
         if (result) {
+            if (action.count > 0 && action.executionType == "once") {
+                return false
+            }
             await runAction(action, webHookData, fitConditions)
         }
     });
+    // await globalActions.forEach(async (action) => {
+    //     const result = await checkActionWithConditions(action, fitConditions)
+    //     if (result) {
+    //         await runAction(action, webHookData, fitConditions)
+    //     }
+    // });
     checkingTags = checkingTags.filter((item) => item !== tag.tag_id)
 }
 

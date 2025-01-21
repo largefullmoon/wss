@@ -6,6 +6,9 @@ const actionSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        global: {
+            type: Boolean,
+        },
         company_id: {
             type: mongoose.Schema.Types.ObjectId, ref: "Company",
             required: true,
