@@ -631,16 +631,19 @@ const runAction = async (action, webHookData, fitConditions = []) => {
         }
         conditions.push(data)
     })
+    console.log(action, "action")
     setTimeout(async () => {
         action.webHook.map(async (whook) => {
             const webhook = await WebHookModel.findById(whook)
-            const data = {
-                'tag_id': webHookData[0].tag_id,
-                'zone_id': webHookData[0].zone_id,
-                'conditions': conditions
+            if (webhook) {
+                const data = {
+                    'tag_id': webHookData[0].tag_id,
+                    'zone_id': webHookData[0].zone_id,
+                    'conditions': conditions
+                }
+                console.log(webhook, "webhook")
+                await runWebHook(webhook, data)
             }
-            console.log(webhook, "webhook")
-            await runWebHook(webhook, data)
         })
     }, 500);
 }
