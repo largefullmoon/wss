@@ -9,6 +9,7 @@ const WebHookSchema = new mongoose.Schema({
     failcount: { type: Number, default: 0 },
     sentcount: { type: Number, default: 0 },
     message: { type: String, default: null },
+    params: [{ type: Object, default: null }],
     urlParams: [{ type: Object, default: null }],
     isURLParams: { type: Boolean, default: false }
 });
