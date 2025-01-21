@@ -598,13 +598,13 @@ const runAction = async (action, webHookData, fitConditions = []) => {
     const conditions = []
     eventType.params.forEach(async (param) => {
         const condition = await Condition.findById(param.condition_id)
-        console.log(fitConditions, "fitConditions")
-        console.log(condition, "condition")
         let battery_status = ''
         if (fitConditions.length > 0) {
             const fitCondition = fitConditions.filter((c) => c.condition._id.toString() == condition._id.toString())
             if (fitCondition) {
                 battery_status = fitCondition['battery_status']
+            } else {
+                return false;
             }
         }
         let conditionString = ''
