@@ -56,8 +56,6 @@ wss.on('connection', (ws, req) => {
     });
     clients.push(ws)
 });
-console.log(Category, "Category")
-console.log(Condition, "Condition")
 const defaultURLParams = [
     { name: "Area Id", key: "area_id" },
     { name: "Area Name", key: "area_name" },
@@ -274,6 +272,8 @@ const { CategoryCondition } = require('../models/CategoryCondition.js');
 const { Category } = require('../models/Category.js');
 const { Condition } = require('../models/Condition.js');
 const EventCount = require('../models/EventCount.js');
+console.log(Category, "Category")
+console.log(Condition, "Condition")
 const AssetEventCount = require('../models/AssetEventCount.js');
 const AssetPosition = require('../models/AssetPosition.js');
 const AssetStatus = require('../models/AssetStatus.js');
