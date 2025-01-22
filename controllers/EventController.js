@@ -56,6 +56,8 @@ wss.on('connection', (ws, req) => {
     });
     clients.push(ws)
 });
+console.log(Category, "Category")
+console.log(Condition, "Condition")
 const defaultURLParams = [
     { name: "Area Id", key: "area_id" },
     { name: "Area Name", key: "area_name" },
@@ -657,8 +659,6 @@ const runAction = async (action, webHookData, fitConditions = []) => {
 }
 
 async function checkTag(tag, type, period) {
-    console.log(Category, "Category")
-    console.log(Condition, "Condition")
     const category_conditions = await CategoryCondition.find({ type: "custom" }).populate('condition_id').populate('category_id')
     const zone = await Zone.findById(tag.zone_id)
     const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
