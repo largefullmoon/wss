@@ -48,7 +48,7 @@ wss.on('connection', (ws, req) => {
     }, 3000); // Ping every 30 seconds
 
     ws.on('pong', () => {
-        console.log("receive pong from client");
+        // console.log("receive pong from client");
     });
 
     ws.on('close', () => {
