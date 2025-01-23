@@ -89,12 +89,16 @@ class MqttHandler {
         const tag = await TagStatus.findOne({ tag_id: paramsAngle.tag_id });
         if (tag) {
           // Tagstatus exists, update it
-          tag.aoa = data
-          if (tag.zone_id != this.zone_id) {
-            tag.is_new = true
+          if (tag.isCheckingAOA) {
+          } else {
+            tag.isCheckingAOA = true
+            tag.aoa = data
+            if (tag.zone_id != this.zone_id) {
+              tag.is_new = true
+            }
+            tag.zone_id = this.zone_id
+            await tag.save();
           }
-          tag.zone_id = this.zone_id
-          await tag.save();
         } else {
           // Tagstatus does not exist, create a new one
           await TagStatus.deleteMany({ tag_id: paramsAngle.tag_id });
@@ -230,12 +234,16 @@ class MqttHandler {
             const tag = await TagStatus.findOne({ tag_id: paramsPosition.tag_id });
             if (tag) {
               // Tagstatus exists, update it
-              tag.position = data
-              if (tag.zone_id != this.zone_id) {
-                tag.is_new = true
+              if (tag.isCheckingPosition) {
+              } else {
+                tag.position = data
+                if (tag.zone_id != this.zone_id) {
+                  tag.is_new = true
+                }
+                tag.zone_id = this.zone_id
+                tag.isCheckingPosition = true
+                await tag.save();
               }
-              tag.zone_id = this.zone_id
-              await tag.save();
             } else {
               // Tagstatus does not exist, create a new one
               await TagStatus.deleteMany({ tag_id: paramsPosition.tag_id });

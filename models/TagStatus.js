@@ -57,7 +57,19 @@ const tagSchema = new mongoose.Schema(
         is_new: {
             type: Boolean,
             default: false,
-        }
+        },
+        isCheckingAOA: {
+            type: Boolean,
+            default: false,
+        },
+        isCheckingPosition: {
+            type: Boolean,
+            default: false,
+        },
+        isCheckingManuf: {
+            type: Boolean,
+            default: false,
+        },
     },
     { timestamps: true }
 );

@@ -12,6 +12,10 @@ const conditionSchema = new mongoose.Schema(
     company_id: {
       type: String,
     },
+    tag_id: {
+      type: String,
+      default: null
+    },
     conditions: {
       type: Array,
       default: []
