@@ -137,7 +137,6 @@ const runWebHook = async (webHook, data) => {
             transporter.sendMail(mailOptions, async (error, info) => {
                 if (error) {
                     console.log("error in sending email", email)
-                    console.log(error)
                     await WebHookModel.updateOne({ _id: webHook._id }, { failcount: webHook.failcount + 1 })
                 } else {
                     console.log("sent email to ", email)
@@ -354,8 +353,43 @@ async function getTagsLastLocation(zoneId = null) {
 let tagIds = []
 let tagEvents = []
 
-async function checkEvent(event, zone_id, areas, ws) {
+async function getTagStatus(tag_id, zone_id, type, data) {
+    const tag = await TagStatus.findOne({ tag_id: tag_id });
+    if (type == 'aoa_data') { type = 'aoa' }
+    if (type == 'position_data') { type = 'position' }
+
+    if (tag) {
+        // Tagstatus exists, update it
+        if (tag.zone_id != zone_id) {
+            tag.is_new = true
+        }
+        if (tag[type] != null) {
+            let old_type = 'previous_' + type
+            tag[old_type] = tag[type]
+        }
+        tag[type] = data
+        tag.zone_id = zone_id
+        tag.isCheckingPosition = true
+        const tagStatus = await tag.save();
+        return tagStatus
+    } else {
+        // Tagstatus does not exist, create a new one
+        const newTag = new TagStatus({
+            tag_id: tag_id,
+            [type]: data,
+            zone_id: zone_id,
+            time: new Date(),
+            is_new: true
+        });
+        const tagStatus = await newTag.save();
+        return tagStatus
+    }
+}
+
+async function checkEvent(event, zone_id, type, tag_id, areas, ws) {
     const tagInfo = JSON.parse(event)
+    const tagStatus = await getTagStatus(tag_id, zone_id, type, tagInfo)
+    tagInfo.type = type
     const assets = await Asset.find()
     if (tagIds.length == 0) {
         tagIds = await getTagsLastLocation(zone_id);
@@ -366,20 +400,21 @@ async function checkEvent(event, zone_id, areas, ws) {
             areas = await Area.find({ map: map._id })
         }
     }
+
     if (tagInfo.type == "manuf_data") {
         if (tagInfo.movement_status == 0) {
-            if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                const previousdata = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
+            if (assets.filter(asset => asset.tag == tag_id)[0]) {
+                const previousdata = await AssetStatus.find({ tag_id: tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
                 if (previousdata.length > 0) {
                 } else {
-                    if (statuses.filter(status => status.tag_id == tagInfo.tag_id && status.zone_id == zone_id).length == 0) {
+                    if (statuses.filter(status => status.tag_id == tag_id && status.zone_id == zone_id).length == 0) {
                         statuses.push({
-                            tag_id: tagInfo.tag_id,
+                            tag_id: tag_id,
                             zone_id: zone_id
                         })
                         const assetstatus = new AssetStatus({
-                            asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
-                            tag_id: tagInfo.tag_id,
+                            asset_id: assets.filter(asset => asset.tag == tag_id)[0]?._id,
+                            tag_id: tag_id,
                             zone_id: zone_id,
                             startTime: new Date(),
                             movement_status: tagInfo.movement_status
@@ -389,9 +424,9 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             }
         } else {
-            if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                const previousdatas = await AssetStatus.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
-                statuses = statuses.filter(status => !status.tag_id == tagInfo.tag_id && status.zone_id == zone_id)
+            if (assets.filter(asset => asset.tag == tag_id)[0]) {
+                const previousdatas = await AssetStatus.find({ tag_id: tag_id, zone_id: zone_id, startTime: { $exists: true }, stopTime: { $exists: false } }).sort({ createdAt: -1 });
+                statuses = statuses.filter(status => !status.tag_id == tag_id && status.zone_id == zone_id)
                 previousdatas.map(async (previousdata) => {
                     if (previousdata && previousdata.movement_status == 0) {
                         previousdata.stopTime = new Date()
@@ -405,22 +440,22 @@ async function checkEvent(event, zone_id, areas, ws) {
     }
     if (tagInfo.type == "position_data") {
         for (let i = 0; i < areas.length; i++) {
-            const currentStatus = await getDeviceInfo(tagInfo.tag_id);
+            const currentStatus = await getDeviceInfo(tag_id);
             if (areas[i].top_right.x >= tagInfo.x && areas[i].top_right.y >= tagInfo.y && areas[i].bottom_left.x <= tagInfo.x && areas[i].bottom_left.y <= tagInfo.y) {
                 if ((currentStatus?.status != "out" && currentStatus?.status != "in") || (currentStatus?.status == 'out') || (currentStatus?.status == 'in' && currentStatus?.area != areas[i]._id.toString())) {
-                    if (assets.filter(asset => asset.tag == tagInfo.tag_id)[0]) {
-                        const previousdata = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
+                    if (assets.filter(asset => asset.tag == tag_id)[0]) {
+                        const previousdata = await AssetPosition.find({ tag_id: tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
                         if (previousdata > 0) {
 
                         } else {
-                            if (positions.filter(position => position.tag_id == tagInfo.tag_id && position.zone_id == zone_id).length == 0) {
+                            if (positions.filter(position => position.tag_id == tag_id && position.zone_id == zone_id).length == 0) {
                                 positions.push({
-                                    tag_id: tagInfo.tag_id,
+                                    tag_id: tag_id,
                                     zone_id: zone_id
                                 })
                                 const assetposition = await AssetPosition({
-                                    asset_id: assets.filter(asset => asset.tag == tagInfo.tag_id)[0]?._id,
-                                    tag_id: tagInfo.tag_id,
+                                    asset_id: assets.filter(asset => asset.tag == tag_id)[0]?._id,
+                                    tag_id: tag_id,
                                     zone_id: zone_id,
                                     area_id: areas[i]._id,
                                     enterTime: new Date()
@@ -429,10 +464,10 @@ async function checkEvent(event, zone_id, areas, ws) {
                             }
                         }
                     }
-                    await setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'in');
+                    await setDeviceInfo(tag_id, areas[i]._id, 'in');
                     const category = 'location'
                     const type = "tag_entered_area"
-                    const object = tagInfo.tag_id
+                    const object = tag_id
                     const zone = zone_id
                     const area = areas[i]._id
                     const information = "Tag cross in Area"
@@ -447,13 +482,13 @@ async function checkEvent(event, zone_id, areas, ws) {
                     await newEvent.save();
                     const data = {
                         'zone_id': zone_id,
-                        'tag_id': tagInfo.tag_id,
+                        'tag_id': tag_id,
                         'area_id': area,
-                        'area_name': tagInfo.tag_id,
-                        'message': `Tag (${tagInfo.tag_id}) cross in Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
+                        'area_name': tag_id,
+                        'message': `Tag (${tag_id}) cross in Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
                     // broadcastToClients(data, "tag_entered_area", "location")
-                    const tag = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
+                    const tag = await TagStatus.findOne({ tag_id: tag_id })
                     const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
                     actions.forEach(action => {
                         if (action.locationcondition_id) {
@@ -468,16 +503,16 @@ async function checkEvent(event, zone_id, areas, ws) {
                 }
             } else {
                 if (currentStatus?.status == 'in' && currentStatus?.area == areas[i]._id.toString()) {
-                    const assetpositions = await AssetPosition.find({ tag_id: tagInfo.tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
-                    positions = positions.filter(position => !position.tag_id == tagInfo.tag_id && position.zone_id == zone_id)
+                    const assetpositions = await AssetPosition.find({ tag_id: tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
+                    positions = positions.filter(position => !position.tag_id == tag_id && position.zone_id == zone_id)
                     assetpositions.map(async (assetposition) => {
                         assetposition.exitTime = new Date();
                         await assetposition.save()
                     })
-                    setDeviceInfo(tagInfo.tag_id, areas[i]._id, 'out');
+                    setDeviceInfo(tag_id, areas[i]._id, 'out');
                     const category = 'location'
                     const type = "tag_exited_area"
-                    const object = tagInfo.tag_id
+                    const object = tag_id
                     const zone = zone_id
                     const area = areas[i]._id
                     const information = "Tag left the Area"
@@ -492,13 +527,13 @@ async function checkEvent(event, zone_id, areas, ws) {
                     await newEvent.save();
                     const data = {
                         'zone_id': zone_id,
-                        'tag_id': tagInfo.tag_id,
-                        'area_id': tagInfo.tag_id,
-                        'area_name': tagInfo.tag_id,
-                        'message': `Tag (${tagInfo.tag_id}) left the Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
+                        'tag_id': tag_id,
+                        'area_id': tag_id,
+                        'area_name': tag_id,
+                        'message': `Tag (${tag_id}) left the Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
                     // broadcastToClients(data, "tag_exited_area", "location")
-                    const tag = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
+                    const tag = await TagStatus.findOne({ tag_id: tag_id })
                     const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
                     actions.forEach(async (action) => {
                         if (action.locationcondition_id) {
@@ -515,13 +550,7 @@ async function checkEvent(event, zone_id, areas, ws) {
             }
         }
     }
-    const tagStatus = await TagStatus.findOne({ tag_id: tagInfo.tag_id })
-    if (tagStatus) {
-        if (!checkingTags.includes(tagStatus.tag_id)) {
-            checkingTags = [...checkingTags, tagStatus.tag_id]
-            await checkTag(tagStatus, "real-time", null)
-        }
-    }
+    await checkTag(tagStatus, "real-time", null)
 }
 
 const checkCustomCondition = async (tag, condition, category) => {
@@ -538,11 +567,15 @@ const checkCustomCondition = async (tag, condition, category) => {
                         logic_ope = "||"
                     }
                 }
-                if (tag[condition.category][param.param] != tag['previous_' + condition.category][param.param]) {
-                    compareString += logic_ope + tag[condition.category][param.param] + param.operator + param.standard_value
-                } else {
-                    compareString += logic_ope + "false"
+                let checkingPreviousStatusOperator = param.operator
+                if (param.operator == "==") {
+                    checkingPreviousStatusOperator = "!="
                 }
+                if (param.operator == "<>") {
+                    checkingPreviousStatusOperator = "=="
+                }
+                const checkingPreviousStatusString = param.standard_value + checkingPreviousStatusOperator + tag['previous_' + condition.category][param.param]
+                compareString += logic_ope + "(" + checkingPreviousStatusString + "&&" + tag[condition.category][param.param] + param.operator + param.standard_value + ")"
             })
             if (eval(compareString) && compareString != "") {
                 return true
@@ -617,11 +650,9 @@ const runAction = async (action, webHookData, fitConditions = []) => {
     eventType.params.forEach(async (param) => {
         const condition = await Condition.findById(param.condition_id)
         let battery_status = ''
+        let fitCondition = {}
         if (fitConditions.length > 0) {
-            const fitCondition = fitConditions.filter((c) => c.condition._id.toString() == condition._id.toString())
-            console.log(fitConditions, "fitConditions")
-            console.log(fitCondition, "fitCondition")
-            console.log(condition, "condition")
+            fitCondition = fitConditions.filter((c) => c.condition._id.toString() == condition._id.toString())
             if (fitCondition.length > 0) {
                 battery_status = fitCondition[0]['battery_status'];
             } else {
@@ -646,6 +677,7 @@ const runAction = async (action, webHookData, fitConditions = []) => {
                 parameters: tagStatus[condition.category],
                 condition: conditionString,
                 description: condition.description,
+                event_id: fitCondition[0].event_id,
                 status: battery_status
             }
         } else {
@@ -656,10 +688,12 @@ const runAction = async (action, webHookData, fitConditions = []) => {
                 parameters: tagStatus[condition.category],
                 condition: conditionString,
                 description: condition.description,
+                event_id: fitCondition[0].event_id,
             }
         }
         conditions.push(data)
     })
+    console.log(conditions)
     setTimeout(async () => {
         action.webHook.map(async (whook) => {
             const webhook = await WebHookModel.findById(whook)
@@ -682,20 +716,13 @@ async function checkTag(tag, type, period) {
     let fitConditions = []
     let webHookData = []
     category_conditions.forEach(async (item) => {
-        if (checkingTagConditions.includes(tag.tag_id + "_" + item.condition_id)) return
         const condition = item.condition_id
         const category = item.category_id.name
         if (!condition.selectedZones.includes(tag.zone_id.toString())) return
         checkingTagConditions = [...checkingTagConditions, tag.tag_id + "_" + item.condition_id]
         const flag = await checkCustomCondition(tag, item.condition_id, item.category_id.name)
-        // if (condition.checkingType == type) {
-        let isTrue = true
-        if (condition.checkingType == "every-minute" && (period % condition.checkingPeriod) == 0) {
-            isTrue = true
-        } else {
-            isTrue = false
-        }
-        if (condition.checkingType == "real-time") {
+        let isTrue = false
+        if (condition.checkingType == type) {
             isTrue = true
         }
         if (isTrue) {
@@ -731,6 +758,7 @@ async function checkTag(tag, type, period) {
                 }
             }
             if (flag) {
+                let event_id
                 const runConditions = tag.runConditions.map((item) => {
                     return item.toString()
                 })
@@ -744,15 +772,8 @@ async function checkTag(tag, type, period) {
                 } else {
                     isValid = true
                 }
-                // if (!runConditions.includes(condition._id.toString())) {
-                //     isValid = true
-                // }
+                let isSameId = false
                 if (isValid) {
-                    await TagStatus.findByIdAndUpdate(tag._id, {
-                        previous_aoa: tag.aoa,
-                        previous_manuf_data: tag.manuf_data,
-                        previous_position: tag.position,
-                    })
                     let color = ""
                     if (condition.severity == "info") {
                         color = '#006FEE'
@@ -773,15 +794,14 @@ async function checkTag(tag, type, period) {
                         })
                     }
                     if (category == 'issue') {
-                        let isTrue = false
                         if (condition.tag_id) {
                             if (condition.tag_id == tag.tag_id) {
-                                isTrue = true
+                                isSameId = true
                             }
                         } else {
-                            isTrue = true
+                            isSameId = true
                         }
-                        if (isTrue) {
+                        if (isSameId) {
                             const newEvent = new Event({
                                 category: item.category_id.name,
                                 type: item.condition_id.name,
@@ -792,6 +812,7 @@ async function checkTag(tag, type, period) {
                                 color
                             });
                             const result = await newEvent.save();
+                            event_id = result._id
                             if (runConditions && runConditions.includes(condition._id.toString())) {
                             } else {
                                 await TagStatus.findByIdAndUpdate(tag._id, {
@@ -800,15 +821,14 @@ async function checkTag(tag, type, period) {
                             }
                         }
                     } else {
-                        let isTrue = false
                         if (condition.tag_id) {
                             if (condition.tag_id == tag.tag_id) {
-                                isTrue = true
+                                isSameId = true
                             }
                         } else {
-                            isTrue = true
+                            isSameId = true
                         }
-                        if (isTrue) {
+                        if (isSameId) {
                             const newEvent = new Event({
                                 category: item.category_id.name,
                                 type: item.condition_id.name,
@@ -816,21 +836,24 @@ async function checkTag(tag, type, period) {
                                 zone: tag.zone_id,
                                 information: string,
                             });
-                            await newEvent.save();
+                            const result = await newEvent.save();
+                            event_id = result._id
                         }
                     }
                 }
-                const data = {
-                    'tag_id': tag.tag_id,
-                    'zone_id': tag.zone_id,
-                    'message': flag
+                if (isValid && isSameId) {
+                    console.log(tag.manuf_data)
+                    console.log(tag.previous_manuf_data)
+                    const data = {
+                        'tag_id': tag.tag_id,
+                        'zone_id': tag.zone_id,
+                        'message': flag
+                    }
+                    webHookData.push(data)
+                    fitConditions.push({ condition: item.condition_id, category: item.category_id.name, battery_status: "ongoing", event_id: event_id })
                 }
-                webHookData.push(data)
-                fitConditions.push({ condition: item.condition_id, category: item.category_id.name, battery_status: "ongoing" })
             }
         }
-        // }
-        checkingTagConditions = checkingTagConditions.filter(item => item != tag.tag_id + "_" + item.condition_id)
     })
     const zoneDetail = await Zone.findById(tag.zone_id)
     const currentTime = new Date();
@@ -857,8 +880,9 @@ async function checkTag(tag, type, period) {
             zone,
             information
         });
-        await newEvent.save();
-        const condition_id = await Condition.findOne({ name: "tag_nodata", type: "system" })
+        const result = await newEvent.save();
+        const event_id = result._id
+        const condition_id = await Condition.findOne({ name: "tag_nodata", type: "system", event_id: event_id })
         webHookData.push(data)
         fitConditions.push({ condition: condition_id, category: "info" })
     }
@@ -883,10 +907,11 @@ async function checkTag(tag, type, period) {
             zone,
             information
         });
-        await newEvent.save();
+        const result = await newEvent.save();
+        const event_id = result._id
         const condition_id = await Condition.findOne({ name: "tag_lost", type: "system" })
         webHookData.push(data)
-        fitConditions.push({ condition: condition_id, category: "info" })
+        fitConditions.push({ condition: condition_id, category: "info", event_id: event_id })
     }
     if (tag.is_new == true) {
         const category = "info";
@@ -909,10 +934,11 @@ async function checkTag(tag, type, period) {
             zone,
             information
         });
-        await newEvent.save();
+        const result = await newEvent.save();
+        const event_id = result._id
         const condition_id = await Condition.findOne({ name: "tag_detected", type: "system" })
         webHookData.push(data)
-        fitConditions.push({ condition: condition_id, category: "info" })
+        fitConditions.push({ condition: condition_id, category: "info", event_id: event_id })
     }
     if (tag.manuf_data) {
         let is_new_battery = false
@@ -972,6 +998,7 @@ async function checkTag(tag, type, period) {
                 const zone = tag.zone_id;
                 const information = `tag(${tag.tag_id})'s ` + content;
                 // broadcastToClients(data, type, "issue")
+                let event_id
                 tag.battery_status = type
                 await tag.save();
                 if (battery_status != "") {
@@ -986,6 +1013,7 @@ async function checkTag(tag, type, period) {
                             color
                         });
                         const result = await newEvent.save();
+                        event_id = result._id
                         await TagStatus.findByIdAndUpdate(tag._id, {
                             ongoingEvents: [...tag.ongoingEvents, { condition_id: type, event_id: result._id }],
                         })
@@ -1002,6 +1030,7 @@ async function checkTag(tag, type, period) {
                                 color
                             });
                             const result = await newEvent.save();
+                            event_id = result._id
                             await TagStatus.findByIdAndUpdate(tag._id, {
                                 ongoingEvents: [...tag.ongoingEvents, { condition_id: type, event_id: result._id }],
                             })
@@ -1026,11 +1055,12 @@ async function checkTag(tag, type, period) {
                         zone,
                         information
                     });
-                    await newEvent.save();
+                    const result = await newEvent.save();
+                    event_id = result._id
                 }
                 const condition_id = await Condition.findOne({ name: type, type: "system" })
                 webHookData.push(data)
-                fitConditions.push({ condition: condition_id, category: "issue", battery_status: battery_status })
+                fitConditions.push({ condition: condition_id, category: "issue", battery_status: battery_status, event_id: event_id })
             }
         }
     }
@@ -1051,13 +1081,13 @@ async function checkTag(tag, type, period) {
         }
     });
     checkingTags = checkingTags.filter((item) => item !== tag.tag_id)
-    if(tag.isCheckingAOA){
+    if (tag.isCheckingAOA) {
         await TagStatus.updateOne({ tag_id: tag.tag_id }, { isCheckingAOA: false })
     }
-    if(tag.isCheckingPosition){
+    if (tag.isCheckingPosition) {
         await TagStatus.updateOne({ tag_id: tag.tag_id }, { isCheckingPosition: false })
     }
-    if(tag.isCheckingManuf){
+    if (tag.isCheckingManuf) {
         await TagStatus.updateOne({ tag_id: tag.tag_id }, { isCheckingManuf: false })
     }
 }

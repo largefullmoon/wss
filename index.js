@@ -49,7 +49,6 @@ wss.on('connection', (ws, req) => {
         }
       });
     }
-    await checkEvent(message.toString(), channel, areas[channel], ws)
   });
 
   ws.on('close', () => {
@@ -78,6 +77,7 @@ async function startServer() {
         server._id.toString(),
       );
       mqttObj[index].go();
+      mqttObj[index].runTask();
     })
     mqttServers.forEach((server, index) => {
       console.log("mqqt servers ", mqttObj[index].id, index);
