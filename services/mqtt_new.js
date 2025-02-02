@@ -7,7 +7,7 @@ var { checkEvent } = require('../controllers/EventController.js');
 
 const influx = new Influx.InfluxDB({
   host: "185.61.139.41",
-  database: "prod",
+  database: "fama",
 });
 
 async function logToInflux(measurement, data, zone, tag_id, antenna_id) {

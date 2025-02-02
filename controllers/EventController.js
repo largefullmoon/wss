@@ -16,7 +16,7 @@ let checkingTags = []
 let checkingTagConditions = []
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
-    database: "prod",
+    database: "fama",
 });
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 9000 });
@@ -369,6 +369,7 @@ async function getTagStatus(tag_id, zone_id, type, data) {
         }
         tag[type] = data
         tag.zone_id = zone_id
+        tag.time = new Date()
         tag.isCheckingPosition = true
         const tagStatus = await tag.save();
         return tagStatus
@@ -436,8 +437,8 @@ async function checkEvent(event, zone_id, type, tag_id, areas, ws) {
                 })
             }
         }
-        // AssetStatus
     }
+    let area_id;
     if (tagInfo.type == "position_data") {
         for (let i = 0; i < areas.length; i++) {
             const currentStatus = await getDeviceInfo(tag_id);
@@ -446,7 +447,6 @@ async function checkEvent(event, zone_id, type, tag_id, areas, ws) {
                     if (assets.filter(asset => asset.tag == tag_id)[0]) {
                         const previousdata = await AssetPosition.find({ tag_id: tag_id, zone_id: zone_id, area_id: areas[i]._id, enterTime: { $exists: true }, exitTime: { $exists: false } }).sort({ createdAt: -1 });
                         if (previousdata > 0) {
-
                         } else {
                             if (positions.filter(position => position.tag_id == tag_id && position.zone_id == zone_id).length == 0) {
                                 positions.push({
@@ -460,6 +460,7 @@ async function checkEvent(event, zone_id, type, tag_id, areas, ws) {
                                     area_id: areas[i]._id,
                                     enterTime: new Date()
                                 })
+                                area_id = areas[i]._id
                                 await assetposition.save()
                             }
                         }
@@ -550,7 +551,7 @@ async function checkEvent(event, zone_id, type, tag_id, areas, ws) {
             }
         }
     }
-    await checkTag(tagStatus, "real-time", null)
+    await checkTag(tagStatus, "real-time", null, area_id)
 }
 
 const checkCustomCondition = async (tag, condition, category) => {
@@ -577,6 +578,9 @@ const checkCustomCondition = async (tag, condition, category) => {
                 const checkingPreviousStatusString = param.standard_value + checkingPreviousStatusOperator + tag['previous_' + condition.category][param.param]
                 compareString += logic_ope + "(" + checkingPreviousStatusString + "&&" + tag[condition.category][param.param] + param.operator + param.standard_value + ")"
             })
+            if(tag.tag_id == "ble-pd-0C4314EF65DC"){
+                console.log(compareString, "compareString")
+            }
             if (eval(compareString) && compareString != "") {
                 return true
             } else {
@@ -693,7 +697,6 @@ const runAction = async (action, webHookData, fitConditions = []) => {
         }
         conditions.push(data)
     })
-    console.log(conditions)
     setTimeout(async () => {
         action.webHook.map(async (whook) => {
             const webhook = await WebHookModel.findById(whook)
@@ -709,7 +712,10 @@ const runAction = async (action, webHookData, fitConditions = []) => {
     }, 500);
 }
 
-async function checkTag(tag, type, period) {
+async function checkTag(tag, type, period, area_id) {
+    if(tag.tag_id == "ble-pd-0C4314EF65DC"){
+        console.log(tag, "tag")
+    }
     const category_conditions = await CategoryCondition.find({ type: "custom" }).populate('condition_id').populate('category_id')
     const zone = await Zone.findById(tag.zone_id)
     const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
@@ -793,57 +799,87 @@ async function checkTag(tag, type, period) {
                             runConditions: [...tag.runConditions, condition._id],
                         })
                     }
-                    if (category == 'issue') {
-                        if (condition.tag_id) {
-                            if (condition.tag_id == tag.tag_id) {
-                                isSameId = true
-                            }
+                    let isAreaMatch = true
+                    if (item.condition_id.selectedAreas.length > 0) {
+                        if (item.condition_id.selectedAreas.includes(area_id)) {
+                            isAreaMatch = true
                         } else {
-                            isSameId = true
+                            isAreaMatch = false
                         }
-                        if (isSameId) {
-                            const newEvent = new Event({
-                                category: item.category_id.name,
-                                type: item.condition_id.name,
-                                object: tag.tag_id,
-                                zone: tag.zone_id,
-                                information: string,
-                                battery_status: "ongoing",
-                                color
-                            });
-                            const result = await newEvent.save();
-                            event_id = result._id
-                            if (runConditions && runConditions.includes(condition._id.toString())) {
+                    }
+                    let isTimeMatch = true
+                    const date = new Date();
+                    if (item.condition_id.start || item.condition_id.end) {
+                        isTimeMatch = false
+                        const hour = date.getHours()
+                        const minute = date.getMinutes()
+                        const [starthour, startminute] = item.condition_id.start.split(":").map(Number);
+                        const [endhour, endminute] = item.condition_id.end.split(":").map(Number);
+                        const currentTimeInMinutes = hour * 60 + minute;
+                        const startTimeInMinutes = starthour * 60 + startminute;
+                        const endTimeInMinutes = endhour * 60 + endminute;
+
+                        if (startTimeInMinutes <= endTimeInMinutes) {
+                            // Normal case: start time is before end time
+                            isTimeMatch = currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
+                        } else {
+                            // Edge case: start time is after end time (spanning midnight)
+                            isTimeMatch = currentTimeInMinutes >= startTimeInMinutes || currentTimeInMinutes <= endTimeInMinutes;
+                        }
+                    }
+                    console.log(isAreaMatch, "isAreaMatch")
+                    console.log(isTimeMatch, "isTimeMatch")
+                    if (isAreaMatch && isTimeMatch) {
+                        if (category == 'issue') {
+                            if (condition.tag_id) {
+                                if (condition.tag_id == tag.tag_id) {
+                                    isSameId = true
+                                }
                             } else {
-                                await TagStatus.findByIdAndUpdate(tag._id, {
-                                    ongoingEvents: [...tag.ongoingEvents, { condition_id: condition._id, event_id: result._id }],
-                                })
-                            }
-                        }
-                    } else {
-                        if (condition.tag_id) {
-                            if (condition.tag_id == tag.tag_id) {
                                 isSameId = true
                             }
+                            if (isSameId) {
+                                const newEvent = new Event({
+                                    category: item.category_id.name,
+                                    type: item.condition_id.name,
+                                    object: tag.tag_id,
+                                    zone: tag.zone_id,
+                                    information: string,
+                                    battery_status: "ongoing",
+                                    color
+                                });
+                                const result = await newEvent.save();
+                                event_id = result._id
+                                if (runConditions && runConditions.includes(condition._id.toString())) {
+                                } else {
+                                    await TagStatus.findByIdAndUpdate(tag._id, {
+                                        ongoingEvents: [...tag.ongoingEvents, { condition_id: condition._id, event_id: result._id }],
+                                    })
+                                }
+                            }
                         } else {
-                            isSameId = true
-                        }
-                        if (isSameId) {
-                            const newEvent = new Event({
-                                category: item.category_id.name,
-                                type: item.condition_id.name,
-                                object: tag.tag_id,
-                                zone: tag.zone_id,
-                                information: string,
-                            });
-                            const result = await newEvent.save();
-                            event_id = result._id
+                            if (condition.tag_id) {
+                                if (condition.tag_id == tag.tag_id) {
+                                    isSameId = true
+                                }
+                            } else {
+                                isSameId = true
+                            }
+                            if (isSameId) {
+                                const newEvent = new Event({
+                                    category: item.category_id.name,
+                                    type: item.condition_id.name,
+                                    object: tag.tag_id,
+                                    zone: tag.zone_id,
+                                    information: string,
+                                });
+                                const result = await newEvent.save();
+                                event_id = result._id
+                            }
                         }
                     }
                 }
                 if (isValid && isSameId) {
-                    console.log(tag.manuf_data)
-                    console.log(tag.previous_manuf_data)
                     const data = {
                         'tag_id': tag.tag_id,
                         'zone_id': tag.zone_id,
@@ -1097,7 +1133,7 @@ async function checkTagStatus(minute) {
     tags.forEach(async (tag) => {
         if (!checkingTags.includes(tag.tag_id)) {
             checkingTags = [...checkingTags, tag.tag_id]
-            await checkTag(tag, "every-minute", minute)
+            await checkTag(tag, "every-minute", minute, null)
         }
     })
 }
@@ -1176,9 +1212,9 @@ const assetEventCountPerZoneCategory = async () => {
 }
 
 setInterval(() => {
-    checkEveryMinute()
-    eventCountPerZoneCategory()
-    assetEventCountPerZoneCategory()
+    // checkEveryMinute()
+    // eventCountPerZoneCategory()
+    // assetEventCountPerZoneCategory()
 }, 60 * 1000);
 
 module.exports = {

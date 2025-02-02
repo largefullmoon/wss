@@ -41,7 +41,19 @@ const conditionSchema = new mongoose.Schema(
     selectedZones: {
       type: Array,
       default: []
-    }
+    },
+    selectedAreas: {
+      type: Array,
+      default: []
+    },
+    start: {
+      type: String,
+      default: null
+    },
+    end: {
+      type: String,
+      default: null
+    },
   },
   { timestamps: true }
 );
