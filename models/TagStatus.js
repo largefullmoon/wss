@@ -10,6 +10,22 @@ const tagSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId, ref: "Zone",
             default: null,
         },
+        previous_zone_id: {
+            type: mongoose.Schema.Types.ObjectId, ref: "Zone",
+            default: null,
+        },
+        area_id: {
+            type: String,
+            default: null,
+        },
+        enterOrExit: {
+            type: String,
+            default: null,
+        },
+        enterOrExitTime: {
+            type: String,
+            default: null,
+        },
         manuf_data: {
             type: Object,
             default: null,

@@ -16,7 +16,7 @@ let checkingTags = []
 let checkingTagConditions = []
 const influx = new Influx.InfluxDB({
     host: "185.61.139.41",
-    database: "fama",
+    database: "prod",
 });
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 9000 });
@@ -272,6 +272,7 @@ const runWebHook = async (webHook, data) => {
     }
 }
 const broadcastToClients = async (data) => {
+    console.log(data, "data")
     clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(data));
@@ -361,7 +362,32 @@ async function getTagStatus(tag_id, zone_id, type, data) {
     if (tag) {
         // Tagstatus exists, update it
         if (tag.zone_id != zone_id) {
-            tag.is_new = true
+            tag.is_new = true;
+            console.log("tag zone is changed")
+            if (tag.zone_id) {
+                tag.previous_zone_id = tag.zone_id
+                console.log("tag previous_zone_id is changed")
+                const category = "info";
+                const previousZoneDetail = await Zone.findById(tag.zone_id)
+                const data = {
+                    'tag_id': tag.tag_id,
+                    'zone_id': tag.zone_id,
+                    'message': `Tag(${tag.tag_id}) left the Zone(${tag.zone_id}, ${previousZoneDetail?.title})`
+                }
+                broadcastToClients(data)
+                const type = "tag_exited";
+                const object = tag.tag_id;
+                const zone = tag.zone_id;
+                const information = `Tag(${tag.tag_id}) left the Zone(${tag.zone_id}, ${previousZoneDetail?.title})`
+                const newEvent = new Event({
+                    category,
+                    type,
+                    object,
+                    zone,
+                    information
+                });
+                await newEvent.save();
+            }
         }
         if (tag[type] != null) {
             let old_type = 'previous_' + type
@@ -488,8 +514,12 @@ async function checkEvent(event, zone_id, type, tag_id, areas, ws) {
                         'area_name': tag_id,
                         'message': `Tag (${tag_id}) cross in Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
-                    // broadcastToClients(data, "tag_entered_area", "location")
+                    broadcastToClients(data)
                     const tag = await TagStatus.findOne({ tag_id: tag_id })
+                    tag.enterOrExit = "enter"
+                    tag.area_id = area
+                    tag.enterOrExitTime = new Date();
+                    await tag.save()
                     const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
                     actions.forEach(action => {
                         if (action.locationcondition_id) {
@@ -533,8 +563,12 @@ async function checkEvent(event, zone_id, type, tag_id, areas, ws) {
                         'area_name': tag_id,
                         'message': `Tag (${tag_id}) left the Area (${areas[i]._id} ${areas[i].desc ? "," + areas[i].desc : ""})`,
                     }
-                    // broadcastToClients(data, "tag_exited_area", "location")
+                    broadcastToClients(data)
                     const tag = await TagStatus.findOne({ tag_id: tag_id })
+                    tag.enterOrExit = "exit"
+                    tag.area_id = area
+                    tag.enterOrExitTime = new Date();
+                    await tag.save()
                     const actions = await Action.find({ status: 1, tag_id: tag.tag_id }).populate('locationcondition_id')
                     actions.forEach(async (action) => {
                         if (action.locationcondition_id) {
@@ -578,9 +612,6 @@ const checkCustomCondition = async (tag, condition, category) => {
                 const checkingPreviousStatusString = param.standard_value + checkingPreviousStatusOperator + tag['previous_' + condition.category][param.param]
                 compareString += logic_ope + "(" + checkingPreviousStatusString + "&&" + tag[condition.category][param.param] + param.operator + param.standard_value + ")"
             })
-            if(tag.tag_id == "ble-pd-0C4314EF65DC"){
-                console.log(compareString, "compareString")
-            }
             if (eval(compareString) && compareString != "") {
                 return true
             } else {
@@ -713,9 +744,6 @@ const runAction = async (action, webHookData, fitConditions = []) => {
 }
 
 async function checkTag(tag, type, period, area_id) {
-    if(tag.tag_id == "ble-pd-0C4314EF65DC"){
-        console.log(tag, "tag")
-    }
     const category_conditions = await CategoryCondition.find({ type: "custom" }).populate('condition_id').populate('category_id')
     const zone = await Zone.findById(tag.zone_id)
     const actions = await Action.find({ status: 1, tag_id: tag.tag_id })
@@ -895,6 +923,10 @@ async function checkTag(tag, type, period, area_id) {
     const currentTime = new Date();
     const tagTime = new Date(tag.time);
     const timeDifference = currentTime - tagTime;
+    if (timeDifference < 5 * 60 * 1000 && (tag.status == 'lost' || tag.status == "no data")) {
+        tag.status = 'good';
+        await tag.save(); // Save the updated tag
+    }
     if (timeDifference > 5 * 60 * 1000 && tag.status != 'no data' && tag.status != 'lost') {
         const category = "info";
         tag.status = 'no data'; // Update the status
@@ -958,7 +990,7 @@ async function checkTag(tag, type, period, area_id) {
             'zone_id': tag.zone_id,
             'message': `New tag(${tag.tag_id}) is detected on Zone(${tag.zone_id}, ${zoneDetail?.title})`
         }
-        // broadcastToClients(data, "tag_detected", "info")
+        broadcastToClients(data)
         const type = "tag_detected";
         const object = tag.tag_id;
         const zone = tag.zone_id;
@@ -1212,9 +1244,9 @@ const assetEventCountPerZoneCategory = async () => {
 }
 
 setInterval(() => {
-    // checkEveryMinute()
-    // eventCountPerZoneCategory()
-    // assetEventCountPerZoneCategory()
+    checkEveryMinute()
+    eventCountPerZoneCategory()
+    assetEventCountPerZoneCategory()
 }, 60 * 1000);
 
 module.exports = {
