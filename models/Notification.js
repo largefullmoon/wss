@@ -14,6 +14,10 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    header: {
+      type: String,
+      default: null,
+    },
     readUserIds: {
       type: Array,
       default: [],

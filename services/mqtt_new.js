@@ -7,7 +7,7 @@ var { checkEvent } = require('../controllers/EventController.js');
 
 const influx = new Influx.InfluxDB({
   host: "185.61.139.41",
-  database: "fama",
+  database: "prod",
 });
 
 async function logToInflux(measurement, data, zone, tag_id, antenna_id) {
@@ -166,9 +166,23 @@ class MqttHandler {
 
   go() {
     const tag_ids = []
-    // var wscon = new WebSocket("wss://websocket.cotrax.io:8443/" + this.zone_id);
-    var wscon = new WebSocket("ws://localhost:8080/" + this.zone_id);
 
+    var wscon
+    const connectWebSocket = () => {
+      wscon = new WebSocket("ws://localhost:8080/" + this.zone_id);
+
+      // Add event listeners for reconnection
+      wscon.onclose = () => {
+        console.log('WebSocket closed. Attempting reconnect...');
+        setTimeout(connectWebSocket, 3000); // Reconnect after 3 seconds
+      };
+
+      wscon.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    };
+    // Initial connection
+    connectWebSocket();
     var anglePattern = this.angle_topic.slice(0, -1) + "+antenna_id/+tag_id";
     var manufPattern = this.manuf_topic.slice(0, -1) + "+antenna_id/+tag_id";
     var positionPattern = this.position_topic.slice(0, -1) + "+location/+tag_id";
@@ -199,6 +213,18 @@ class MqttHandler {
           tag_id: paramsAngle.tag_id,
           "type": type
         }
+        // Check connection state before sending
+        if (wscon.readyState !== WebSocket.OPEN) {
+          console.log('WebSocket not open. Reconnecting...');
+          connectWebSocket();
+
+          // Wait for connection to open
+          await new Promise(resolve => {
+            wscon.onopen = () => {
+              resolve();
+            };
+          });
+        }
         wscon.send(JSON.stringify(wsmessage).toString());
         // this.processMessage(data, type, paramsAngle.tag_id)
 
@@ -215,6 +241,18 @@ class MqttHandler {
             tag_id: paramsManuf.tag_id,
             "type": type
           }
+          // Check connection state before sending
+          if (wscon.readyState !== WebSocket.OPEN) {
+            console.log('WebSocket not open. Reconnecting...');
+            connectWebSocket();
+
+            // Wait for connection to open
+            await new Promise(resolve => {
+              wscon.onopen = () => {
+                resolve();
+              };
+            });
+          }
           wscon.send(JSON.stringify(wsmessage).toString());
           this.processMessage(data, type, paramsManuf.tag_id);
           logToInflux("manuf_data", data, this.zone_id, paramsManuf.tag_id, paramsManuf.antenna_id)
@@ -228,6 +266,18 @@ class MqttHandler {
               tag_id: paramsPosition.tag_id,
               'location': paramsPosition.location,
               "type": type
+            }
+            // Check connection state before sending
+            if (wscon.readyState !== WebSocket.OPEN) {
+              console.log('WebSocket not open. Reconnecting...');
+              connectWebSocket();
+
+              // Wait for connection to open
+              await new Promise(resolve => {
+                wscon.onopen = () => {
+                  resolve();
+                };
+              });
             }
             wscon.send(JSON.stringify(wsmessage).toString());
             this.processMessage(data, type, paramsPosition.tag_id)

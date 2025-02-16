@@ -26,7 +26,7 @@ const transporter = nodemailer.createTransport({
     secure: true,
     auth: {
         user: 'alerts@cotrax.io',
-        pass: 'gbuv hcjk eudg amho',
+        pass: 'pjxb nngg wlyx wuld',
     },
     tls: {
         rejectUnauthorized: false
@@ -101,9 +101,9 @@ const runWebHook = async (webHook, data) => {
                         break;
                     case "last_position":
                         const tag_id = data['tag_id']
-                        const positionData = await TagStatus.findOne({ tag_id: tag_id });
-                        if (positionData) {
-                            value = JSON.stringify(positionData);
+                        const tag = await TagStatus.findOne({ tag_id: tag_id });
+                        if (tag) {
+                            value = JSON.stringify(tag.position);
                         }
                         break;
                     default:
@@ -126,6 +126,15 @@ const runWebHook = async (webHook, data) => {
         if (email_text == "") {
             email_text = webHook.description
         }
+        const tag_id = data['tag_id']
+        const tagStatus = await TagStatus.findOne({ tag_id: tag_id });
+        const zone = await Zone.findById(data['zone_id']);
+        if (zone) {
+            email_text += `<br/> Location : zone ${zone.title}, `
+        }
+        if (tagStatus) {
+            email_text += `coordinates (X: ${tagStatus.position.x}, Y: ${tagStatus.position.y}, Z: ${tagStatus.position.z})`
+        }
         webHook.emails.forEach((email) => {
             const mailOptions = {
                 from: 'alerts@cotrax.io',
@@ -146,11 +155,13 @@ const runWebHook = async (webHook, data) => {
         });
     }
     if (webHook.type == "dashboard_notification") {
+        console.log("dashboard_notification")
         broadcastToClients({ ...data, message: webHook.message })
         await Notification.create({ tag_id: data.tag_id, zone_id: data.zone_id, message: webHook.message, readUserIds: [] })
         await WebHookModel.updateOne({ _id: webHook._id }, { sentcount: webHook.sentcount + 1 })
     }
     if (webHook.type == "webhook") {
+        console.log("webhook")
         try {
             const isURLParams = webHook.isURLParams;
             let params = webHook.params;
@@ -272,12 +283,12 @@ const runWebHook = async (webHook, data) => {
     }
 }
 const broadcastToClients = async (data) => {
-    console.log(data, "data")
     clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(data));
         }
     });
+    await axios.get(`https://api.telegram.org/bot7520070918:AAFGmwD595Q6fAg-ULjVxIMRbieWKS40Sic/sendMessage?chat_id=-1002472757446&text=${data.message}`);
 }
 const redis = require('redis');
 const { CategoryCondition } = require('../models/CategoryCondition.js');
@@ -363,22 +374,31 @@ async function getTagStatus(tag_id, zone_id, type, data) {
         // Tagstatus exists, update it
         if (tag.zone_id != zone_id) {
             tag.is_new = true;
-            console.log("tag zone is changed")
             if (tag.zone_id) {
                 tag.previous_zone_id = tag.zone_id
-                console.log("tag previous_zone_id is changed")
                 const category = "info";
                 const previousZoneDetail = await Zone.findById(tag.zone_id)
-                const data = {
+                let data = {
                     'tag_id': tag.tag_id,
                     'zone_id': tag.zone_id,
-                    'message': `Tag(${tag.tag_id}) left the Zone(${tag.zone_id}, ${previousZoneDetail?.title})`
+                    'message': `Tag(${tag.tag_id}) exit from the Zone(${tag.zone_id}, ${previousZoneDetail?.title})`
+                }
+                const asset = await Asset.findOne({ tag: tag.tag_id });
+                if (asset) {
+                    data = {
+                        'tag_id': tag.tag_id,
+                        'zone_id': tag.zone_id,
+                        'message': `Asset(${asset.title}) exit from the Zone(${tag.zone_id}, ${previousZoneDetail?.title})`
+                    }
                 }
                 broadcastToClients(data)
                 const type = "tag_exited";
                 const object = tag.tag_id;
                 const zone = tag.zone_id;
-                const information = `Tag(${tag.tag_id}) left the Zone(${tag.zone_id}, ${previousZoneDetail?.title})`
+                const information = `Tag(${tag.tag_id}) exit from the Zone(${tag.zone_id}, ${previousZoneDetail?.title})`
+                if (asset) {
+                    const information = `Asset(${asset.title}) exit from the Zone(${tag.zone_id}, ${previousZoneDetail?.title})`
+                }
                 const newEvent = new Event({
                     category,
                     type,
@@ -612,6 +632,9 @@ const checkCustomCondition = async (tag, condition, category) => {
                 const checkingPreviousStatusString = param.standard_value + checkingPreviousStatusOperator + tag['previous_' + condition.category][param.param]
                 compareString += logic_ope + "(" + checkingPreviousStatusString + "&&" + tag[condition.category][param.param] + param.operator + param.standard_value + ")"
             })
+            if (tag.tag_id == "ble-pd-0C4314EF65DC") {
+                console.log(compareString)
+            }
             if (eval(compareString) && compareString != "") {
                 return true
             } else {
@@ -624,7 +647,7 @@ const checkCustomCondition = async (tag, condition, category) => {
     }
 }
 
-const checkActionWithConditions = async (action, conditions) => {
+const checkActionWithConditions = async (tag_id, action, conditions) => {
     let isLocationCondition = false
     let localtionCondition = ''
     const eventType = await EventType.findById(action.eventType).populate('params.category_id')
@@ -648,10 +671,12 @@ const checkActionWithConditions = async (action, conditions) => {
                 compareString += ope
             }
             conditions.forEach(element => {
-                if (element.category == param.category_id.name && element.condition._id.toString() == param.condition_id.toString()) {
-                    if (flag == false) {
-                        flag = true
-                        compareString += 'true'
+                if (element.category && element.condition) {
+                    if (element.category == param.category_id.name && element.condition._id.toString() == param.condition_id.toString()) {
+                        if (flag == false) {
+                            flag = true
+                            compareString += 'true'
+                        }
                     }
                 }
             });
@@ -660,6 +685,9 @@ const checkActionWithConditions = async (action, conditions) => {
             compareString += 'false'
         }
     });
+    if (tag_id == "ble-pd-0C4314EF65DC") {
+        console.log(compareString, "compareString")
+    }
     if (isLocationCondition && eval(compareString) && compareString != "") {
         await Action.findOneAndUpdate(action._id, { locationcondition_id: localtionCondition })
         return false
@@ -730,6 +758,7 @@ const runAction = async (action, webHookData, fitConditions = []) => {
     })
     setTimeout(async () => {
         action.webHook.map(async (whook) => {
+            if (whook == "") return false
             const webhook = await WebHookModel.findById(whook)
             if (webhook) {
                 const data = {
@@ -1134,7 +1163,7 @@ async function checkTag(tag, type, period, area_id) {
     }
     const globalActions = await Action.find({ status: 1, global: true })
     await actions.forEach(async (action) => {
-        const result = await checkActionWithConditions(action, fitConditions)
+        const result = await checkActionWithConditions(tag.tag_id, action, fitConditions)
         if (result) {
             if (action.count > 0 && action.executionType == "once") {
                 return false
@@ -1143,7 +1172,7 @@ async function checkTag(tag, type, period, area_id) {
         }
     });
     await globalActions.forEach(async (action) => {
-        const result = await checkActionWithConditions(action, fitConditions)
+        const result = await checkActionWithConditions(tag.tag_id, action, fitConditions)
         if (result) {
             await runAction(action, webHookData, fitConditions)
         }
@@ -1161,7 +1190,7 @@ async function checkTag(tag, type, period, area_id) {
 }
 
 async function checkTagStatus(minute) {
-    const tags = await TagStatus.find()
+    const tags = await TagStatus.find({ zone_id: { $ne: null } })
     tags.forEach(async (tag) => {
         if (!checkingTags.includes(tag.tag_id)) {
             checkingTags = [...checkingTags, tag.tag_id]

@@ -25,12 +25,6 @@ const mqttServer = require('./models/Mqtt');
 const zoneController = require('./controllers/ZoneController.js');
 app.use('/api', zoneController);
 
-// const serverOptions = {
-//   cert: fs.readFileSync('/etc/nginx/ssl/cotrax.io.crt'),    // Path to SSL certificate
-//   key: fs.readFileSync('/etc/nginx/ssl/cotrax.io.key'),  // Path to private key
-// };
-// const httpsServer = https.createServer(serverOptions);
-
 const wss = new WebSocket.Server({ port: 8080 });
 
 wss.on('connection', (ws, req) => {
